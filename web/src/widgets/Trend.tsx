@@ -19,9 +19,16 @@ function Trend({ config }: { config: TrendConfig }) {
       animation: false,
       grid: { left: 44, right: 12, top: 24, bottom: 24 },
       title: { text: desc.label, textStyle: { fontSize: 12, fontWeight: 'normal' } },
-      xAxis: { type: 'value', name: 's', min: 'dataMin', axisLabel: { formatter: (v: number) => String(Math.round(v)) } },
+      // No gridlines (splitLine) — they obscure the data.
+      xAxis: {
+        type: 'value',
+        name: 's',
+        min: 'dataMin',
+        axisLabel: { formatter: (v: number) => String(Math.round(v)) },
+        splitLine: { show: false },
+      },
       // Pace reads better inverted (faster = up); power/hr normal.
-      yAxis: { type: 'value', scale: true, inverse: config.metric === 'pace' },
+      yAxis: { type: 'value', scale: true, inverse: config.metric === 'pace', splitLine: { show: false } },
       series: [
         {
           type: 'line',

@@ -56,6 +56,7 @@ function ForceCurve({ config }: { config: ForceCurveConfig }) {
       animation: false,
       grid: { left: 48, right: 12, top: 28, bottom: 30 },
       title: { text: 'Force curve (N)', textStyle: { fontSize: 12, fontWeight: 'normal' } },
+      // No gridlines (splitLine) — they obscure the measured points.
       xAxis: {
         type: 'value',
         min: 0,
@@ -63,8 +64,9 @@ function ForceCurve({ config }: { config: ForceCurveConfig }) {
         name: config.xAxis === 'normalized' ? 'drive %' : 'sample',
         nameLocation: 'middle',
         nameGap: 20,
+        splitLine: { show: false },
       },
-      yAxis: { type: 'value', min: 0, max: yMax, name: 'N' },
+      yAxis: { type: 'value', min: 0, max: yMax, name: 'N', splitLine: { show: false } },
       series,
     }
   }, [recent, sessionPeak, config])

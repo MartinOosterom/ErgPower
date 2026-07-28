@@ -48,8 +48,10 @@ recorded capture (`ReplayPm5Source`) — so the whole pipeline is testable witho
 That's it — **no Python, no Node, no package manager at runtime.** The native BLE bridge and the browser
 dashboard are both compiled into the jar and used by the Java app directly.
 
-**To build**, additionally: a JDK + Maven (bundled `./mvnw`), a **Rust toolchain** (`cargo`, e.g. via
-[rustup](https://rustup.rs)) for the bridge, and — for the web UI — a private Node the `package` build
+**To build**, additionally: a JDK + Maven (bundled `./mvnw`), a **Rust toolchain** for the bridge
+(install via [rustup](https://rustup.rs) — the build finds `~/.cargo/bin/cargo` automatically, so it
+works even from an IDE that didn't source your shell profile; for a non-rustup install pass
+`-Dcargo.executable=/path/to/cargo`), and — for the web UI — a private Node the `package` build
 downloads itself. The Rust/Node builds can be skipped (`-Dnative.skip=true` / `-Dfrontend.skip=true`)
 to reuse existing artifacts for an offline build.
 

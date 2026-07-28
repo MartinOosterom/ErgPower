@@ -37,6 +37,10 @@
              by the host profile below (e.g. darwin-arm64) and names the in-jar bundle directory. -->
         <native.skip>false</native.skip>
         <native.classifier>unknown</native.classifier>
+        <!-- Absolute path to cargo so the build finds rustup's toolchain regardless of whether the
+             launching shell/IDE has ~/.cargo/bin on PATH. Override for a non-rustup install, e.g.
+             -Dcargo.executable=/opt/homebrew/bin/cargo (or just `cargo` if it's on your build PATH). -->
+        <cargo.executable>${env.HOME}/.cargo/bin/cargo</cargo.executable>
     </properties>
     <dependencies>
         <dependency>
@@ -176,7 +180,10 @@
                         <goals><goal>exec</goal></goals>
                         <configuration>
                             <skip>${native.skip}</skip>
-                            <executable>cargo</executable>
+                            <!-- Absolute path (cargo.executable) so it resolves without ~/.cargo/bin on
+                                 PATH. If cargo isn't installed, use rustup (https://rustup.rs) or build
+                                 with -Dnative.skip=true to reuse an already-built bridge binary. -->
+                            <executable>${cargo.executable}</executable>
                             <workingDirectory>bridge</workingDirectory>
                             <arguments>
                                 <argument>build</argument>
