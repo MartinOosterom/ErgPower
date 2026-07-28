@@ -1,0 +1,194 @@
+# Leading artifact for change add-rest-api. On implementation this moves to api/openapi.yaml.
+openapi: 3.0.3
+info:
+  title: ErgPower API
+  version: 0.1.0
+  description: >
+    Live rowing data from a Concept2 PM5, for a browser dashboard. v1 is read-only: connection status,
+    a full current-state snapshot, and a multiplexed Server-Sent Events stream. All physical quantities
+    are SI (metres, seconds, watts, Newtons, bpm); pace is seconds per 500 m. Commands
+    (connect/disconnect, device scan) and stored-session browsing are deferred to later revisions.
+servers:
+  - url: /api/v1
+
+tags:
+  - name: connection
+  - name: live
+
+paths:
+  /connection:
+    get:
+      operationId: getConnection
+      summary: Current PM5 connection status.
+      tags: [connection]
+      responses:
+        "200":
+          description: Current connection status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionStatus" }
+
+  /live/snapshot:
+    get:
+      operationId: getLiveSnapshot
+      summary: Full current live state, for the initial dashboard render.
+      tags: [live]
+      responses:
+        "200":
+          description: Current live snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LiveSnapshot" }
+
+  /live/stream:
+    get:
+      operationId: streamLive
+      summary: Multiplexed live event stream (Server-Sent Events).
+      description: >
+        A text/event-stream carrying named events. Each SSE `event:` field is one of
+        connection | workout | metrics | stroke | forceCurve | heartbeat, and its `data:` is the JSON
+        of the correspondingly-named schema (enumerated by LiveEvent). Clients connect with EventSource
+        and dispatch on the event name; on reconnect, re-fetch /live/snapshot to resync.
+      tags: [live]
+      responses:
+        "200":
+          description: An open SSE stream (does not terminate until the client disconnects).
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/LiveEvent" }
+
+components:
+  schemas:
+    ConnectionState:
+      type: string
+      enum: [DISCONNECTED, SEARCHING, CONNECTING, CONNECTED, RECONNECTING]
+
+    DeviceInfo:
+      type: object
+      properties:
+        name: { type: string, description: 'Advertised name, e.g. "PM5 432234859 Row".' }
+        serial: { type: string, nullable: true }
+        address: { type: string, description: "CoreBluetooth peripheral UUID (per host)." }
+      required: [name, address]
+
+    ConnectionStatus:
+      type: object
+      properties:
+        state: { $ref: "#/components/schemas/ConnectionState" }
+        device:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/DeviceInfo" }]
+        firmware: { type: string, nullable: true, description: "PM5 firmware revision string." }
+        profileId: { type: string, nullable: true, description: "Firmware decode profile in use." }
+        since: { type: string, format: date-time, description: "When this state was entered." }
+      required: [state]
+
+    WorkoutDurationType:
+      type: string
+      enum: [TIME, DISTANCE, OTHER]
+
+    WorkoutPhase:
+      type: string
+      enum: [WAITING, ROWING, RESTING, ENDED]
+
+    WorkoutState:
+      type: object
+      properties:
+        type: { type: integer, description: "Raw PM5 workout-type enum." }
+        durationType: { $ref: "#/components/schemas/WorkoutDurationType" }
+        targetTimeS: { type: number, nullable: true, description: "Fixed-time target (s)." }
+        targetDistanceM: { type: integer, nullable: true, description: "Fixed-distance target (m)." }
+        phase: { $ref: "#/components/schemas/WorkoutPhase" }
+        intervalCount: { type: integer }
+      required: [durationType, phase]
+
+    LiveMetrics:
+      type: object
+      description: Coherent snapshot of the latest values merged across PM5 characteristics.
+      properties:
+        elapsedTimeS: { type: number }
+        distanceM: { type: number }
+        powerW: { type: integer }
+        paceSecondsPer500: { type: number, description: "Current pace, seconds per 500 m." }
+        avgPaceSecondsPer500: { type: number }
+        strokeRate: { type: integer, description: "Strokes per minute." }
+        heartRateBpm: { type: integer, nullable: true, description: "null = no HR belt." }
+        dragFactor: { type: integer }
+        timeLeftS: { type: number, nullable: true, description: "Fixed-time pieces." }
+        distanceLeftM: { type: number, nullable: true, description: "Fixed-distance pieces." }
+        projectedTimeS: { type: number, nullable: true }
+        projectedDistanceM: { type: integer, nullable: true }
+        totalCalories: { type: integer }
+        splitAvgPowerW: { type: integer, nullable: true }
+        splitAvgPaceSecondsPer500: { type: number, nullable: true }
+      required: [elapsedTimeS, distanceM, powerW, strokeRate]
+
+    StrokeSummary:
+      type: object
+      properties:
+        index: { type: integer, description: "Monotonic stroke index." }
+        pmTime: { type: number }
+        drivePeakForceN: { type: number }
+        avgDriveForceN: { type: number }
+        driveTimeS: { type: number }
+        powerW: { type: integer }
+        strokeDistanceM: { type: number }
+      required: [index, pmTime]
+
+    ForceCurve:
+      type: object
+      properties:
+        strokeIndex: { type: integer }
+        pmTime: { type: number }
+        forcesN:
+          type: array
+          items: { type: number }
+          description: "Ordered drive-force samples, in Newtons."
+        peakN: { type: number }
+      required: [strokeIndex, forcesN]
+
+    LiveSnapshot:
+      type: object
+      properties:
+        connection: { $ref: "#/components/schemas/ConnectionStatus" }
+        workout:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/WorkoutState" }]
+        metrics:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/LiveMetrics" }]
+        lastStroke:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/StrokeSummary" }]
+        lastForceCurve:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/ForceCurve" }]
+      required: [connection]
+
+    Heartbeat:
+      type: object
+      properties:
+        t: { type: string, format: date-time }
+      required: [t]
+
+    LiveEvent:
+      description: >
+        Documents the possible SSE payloads. On the wire these are separate named SSE events (see the
+        /live/stream description), not a wrapper object; this oneOf enumerates the `data:` payloads.
+      oneOf:
+        - $ref: "#/components/schemas/ConnectionStatus"
+        - $ref: "#/components/schemas/WorkoutState"
+        - $ref: "#/components/schemas/LiveMetrics"
+        - $ref: "#/components/schemas/StrokeSummary"
+        - $ref: "#/components/schemas/ForceCurve"
+        - $ref: "#/components/schemas/Heartbeat"
+
+    Problem:
+      type: object
+      description: RFC 7807 problem details.
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+      required: [title, status]

@@ -11,7 +11,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import work.zing.ergpower.pm5.api.LiveState;
 import work.zing.ergpower.pm5.capture.CaptureService;
+import work.zing.ergpower.pm5.capture.SessionManager;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 import work.zing.ergpower.pm5.source.BlePm5Source;
 import work.zing.ergpower.pm5.source.ReplayPm5Source;
@@ -37,21 +39,54 @@ public class CaptureCommand implements ApplicationRunner {
     private static final String APP_VERSION = "0.0.1-SNAPSHOT";
 
     private final ErgPowerBleProperties props;
+    private final LiveState liveState;
 
-    public CaptureCommand(ErgPowerBleProperties props) {
+    public CaptureCommand(ErgPowerBleProperties props, LiveState liveState) {
         this.props = props;
+        this.liveState = liveState;
     }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         List<String> commands = args.getNonOptionArgs();
-        if (commands.contains("capture")) {
+        if (commands.contains("serve")) {
+            serve();
+        } else if (commands.contains("capture")) {
             capture(args);
         } else if (commands.contains("replay")) {
             replay(commands);
         } else {
             usage();
         }
+    }
+
+    /**
+     * Run as a service: connect to the PM5, attach the live-API subscriber ({@link LiveState}) and the
+     * storage subscriber ({@link SessionManager}) to the one multicast source, then return — the
+     * reactive web server keeps the process alive serving {@code /api/v1} (design D5/D10).
+     */
+    private void serve() throws Exception {
+        String device = props.resolvedDeviceName();
+        Path storageDir = Path.of(props.storage().dir());
+        BlePm5Source source =
+                new BlePm5Source(Path.of(props.bridge().dir()), device, props.bridge().uvCommand());
+        source.setSampleRateMillis((int) props.capture().sampleRate().toMillis());
+        source.setAutoReconnect(props.connect().autoReconnect());
+        source.setProfileOverride(props.resolvedProfileOverride());
+
+        liveState.bind(source);                       // subscriber: live API (state + SSE)
+
+        SessionManager manager = new SessionManager(storageDir, source, APP_VERSION);
+        source.setRawFrameListener(manager::onRawFrame);
+        source.events().subscribe(manager::onEvent);  // subscriber: storage (independent)
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            source.stop();
+            manager.close();
+        }, "serve-shutdown"));
+
+        source.start();
+        System.err.println("ErgPower serving on http://localhost:8080/api/v1"
+                + "  (rowing is auto-recorded to " + storageDir.toAbsolutePath() + "/session-*)");
     }
 
     private void capture(ApplicationArguments args) throws Exception {
@@ -99,6 +134,7 @@ public class CaptureCommand implements ApplicationRunner {
     private void usage() {
         System.err.println("""
                 ErgPower — Concept2 PM5 capture
+                  serve                    run the live REST + SSE API on :8080/api/v1 (also records)
                   capture [--seconds=N]    live-capture a rowing session (default: until disconnect/Ctrl-C)
                   replay <capture.ndjson>  decode a saved capture into a session folder
                 Config: ergpower.ble.* (device.match, device.name, bridge.dir, storage.dir, ...)""");

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-28
+goal: A spec-led /api/v1 that a browser viewer consumes for live rowing data
+  (metrics + force curves) over REST and SSE

@@ -60,9 +60,28 @@ java -jar target/ErgPower-0.0.1-SNAPSHOT.jar capture
 # Decode a previously saved raw capture into a session folder.
 java -jar target/ErgPower-0.0.1-SNAPSHOT.jar replay <capture-or-raw.ndjson>
 
+# Serve the live REST + SSE API on :8080/api/v1 (also auto-records to sessions/).
+java -jar target/ErgPower-0.0.1-SNAPSHOT.jar serve
+
 # Usage / help.
 java -jar target/ErgPower-0.0.1-SNAPSHOT.jar
 ```
+
+## Live API (serve mode)
+
+`serve` runs a reactive HTTP server whose contract is the leading OpenAPI document
+[`api/openapi.yaml`](api/openapi.yaml) (Spring server interfaces are generated from it). A browser
+viewer (later) consumes it; for now:
+
+```sh
+curl -s  http://localhost:8080/api/v1/connection       # PM5 connection status + firmware/profile
+curl -s  http://localhost:8080/api/v1/live/snapshot     # full current state, for initial render
+curl -N  http://localhost:8080/api/v1/live/stream       # multiplexed SSE: metrics, stroke, forceCurve, …
+```
+
+The SSE stream carries named events (`connection`, `workout`, `metrics`, `stroke`, `forceCurve`,
+`heartbeat`); `metrics` is a full snapshot at the PM5 sample cadence. v1 is read-only. Storage and the
+API are independent subscribers to the same live source, so `serve` streams **and** records.
 
 Sessions **start and stop automatically** from the PM5 workout state — just row. Each piece is
 written to `sessions/session-<timestamp>/`.
