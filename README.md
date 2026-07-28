@@ -37,18 +37,14 @@ recorded capture (`ReplayPm5Source`) — so the whole pipeline is testable witho
 
 - **macOS** (BLE via CoreBluetooth), with Bluetooth permission granted to your terminal
   (System Settings → Privacy & Security → Bluetooth).
-- **JDK 26** — the project targets Java 26. Your shell's default `java` is often older; point Maven
-  and the jar at 26 with `JAVA_HOME`:
-  ```sh
-  export JAVA_HOME=$(/usr/libexec/java_home -v 26)
-  ```
+- **JDK 21 (LTS) or newer** — the project targets Java 21, so it also runs on 24 / 25 / 26. If your
+  default `java` isn't 21+, select one with `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`.
 - **[uv](https://docs.astral.sh/uv/)** on your `PATH` (the app launches the bridge via `uv run`).
 - A Concept2 **PM5** monitor.
 
 ## Build
 
 ```sh
-export JAVA_HOME=$(/usr/libexec/java_home -v 26)
 ./mvnw -q -DskipTests package     # → target/ErgPower-0.0.1-SNAPSHOT.jar
 ./mvnw test                       # run the test suite
 ```
@@ -151,7 +147,7 @@ docs/reference/  spec index + how to fetch the (git-ignored) vendor PDFs
 
 - Tests decode a real captured row and assert exact values — the regression anchor for the decoder,
   force-curve reassembly, storage recombination, auto start/stop, and firmware-profile divergence.
-- Maven must run on JDK 26 (`JAVA_HOME` as above); the bridge env is managed by `uv`.
+- Targets **Java 21 (LTS)**; runs on 21 and newer. The bridge env is managed by `uv`.
 
 ## Reference specs
 
