@@ -1,0 +1,13 @@
+[project]
+name = "ergpower-ble"
+version = "0.1.0"
+description = "ErgPower BLE bridge — connects to a Concept2 PM5 over BLE and forwards raw notification frames."
+requires-python = ">=3.11"
+dependencies = [
+    "bleak>=0.22",
+]
+
+# This is a bridge/script project, not a distributable package — tell uv not to
+# try to build/install it, just manage the dependency environment.
+[tool.uv]
+package = false
