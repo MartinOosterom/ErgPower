@@ -1,8 +1,5 @@
-# ble-connection-config Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-pm5-capture-storage. Update Purpose after archive.
-## Requirements
 ### Requirement: Configurable device selection
 The system SHALL allow configuration of which PM5 to connect to via a selection strategy: by advertised
 name/serial, by a cached **platform device handle**, or by first PM5 found (matched on the Concept2
@@ -24,28 +21,6 @@ scopes configuration to a **single** device (no multi-device profiles).
 - **AND** if the cached handle no longer resolves, the system falls back to the configured selection
   strategy
 
-### Requirement: Configurable connection behaviour
-The system SHALL allow configuration of connection behaviour: scan timeout, connect timeout, whether to auto-reconnect on drop, and reconnect backoff bounds. BLE-level reconnection SHALL be owned by the bridge; JVM-level restart of the bridge process SHALL be governed by the same auto-reconnect intent.
-
-#### Scenario: Auto-reconnect on BLE drop
-- **WHEN** auto-reconnect is enabled and the PM5 disconnects mid-session
-- **THEN** the bridge attempts to reconnect using the configured backoff, and reports connection state changes to the JVM
-
-#### Scenario: Connect timeout honoured
-- **WHEN** a connection attempt exceeds the configured connect timeout
-- **THEN** the attempt fails, the failure is surfaced, and behaviour follows the auto-reconnect configuration
-
-### Requirement: Configurable capture parameters
-The system SHALL allow configuration of the PM5 status sample rate (written to the PM5 sample-rate characteristic) and whether the per-stroke force curve is captured. "Faithful mode" (subscribe to all data characteristics) SHALL be the default.
-
-#### Scenario: Sample rate applied
-- **WHEN** a status sample rate is configured
-- **THEN** the bridge writes it to the PM5 sample-rate characteristic on connect, so status notifications arrive at the configured cadence
-
-#### Scenario: Force curve disabled
-- **WHEN** force-curve capture is disabled in configuration
-- **THEN** the system does not subscribe to / does not reassemble the force-curve characteristic, and no force-curve events or files are produced
-
 ### Requirement: Device discovery mode
 The bridge SHALL provide a discovery mode that lists nearby PM5 devices with the identifiers usable in
 configuration (advertised name/serial and the platform device handle for that host), so a user can
@@ -56,4 +31,3 @@ populate device configuration.
 - **THEN** it lists each nearby PM5 with its advertised name/serial and the platform device handle
   usable for configuration on that host
 - **AND** it exits without connecting or capturing
-

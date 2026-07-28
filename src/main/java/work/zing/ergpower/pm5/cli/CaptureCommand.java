@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import work.zing.ergpower.pm5.capture.CaptureService;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 import work.zing.ergpower.pm5.source.BlePm5Source;
+import work.zing.ergpower.pm5.source.BridgeBinary;
 import work.zing.ergpower.pm5.source.ReplayPm5Source;
 import work.zing.ergpower.pm5.storage.SessionMeta;
 import work.zing.ergpower.pm5.storage.SessionStorage;
@@ -79,8 +80,7 @@ public class CaptureCommand implements ApplicationRunner {
 
         String device = props.resolvedDeviceName();
         Path storageDir = Path.of(props.storage().dir());
-        BlePm5Source source =
-                new BlePm5Source(Path.of(props.bridge().dir()), device, props.bridge().uvCommand());
+        BlePm5Source source = new BlePm5Source(BridgeBinary.resolve(props.bridge().binary()), device);
         source.setSampleRateMillis((int) props.capture().sampleRate().toMillis());
         source.setAutoReconnect(props.connect().autoReconnect());
         source.setProfileOverride(props.resolvedProfileOverride());

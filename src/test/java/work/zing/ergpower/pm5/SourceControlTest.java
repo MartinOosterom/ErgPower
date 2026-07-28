@@ -42,7 +42,7 @@ import reactor.core.scheduler.Schedulers;
 class SourceControlTest {
 
     private static final Path FIXTURE =
-            Path.of("ble-bridge/captures/2026-07-28_rowerg_432234859_289m_28strokes.ndjson");
+            Path.of("src/test/resources/captures/2026-07-28_rowerg_432234859_289m_28strokes.ndjson");
     private static final String SESSION_ID = "session-2026-07-28T10-00-00";
 
     private static final Path STORAGE;

@@ -50,9 +50,9 @@ public record ErgPowerBleProperties(
             @DefaultValue("true") boolean autoSession) {
     }
 
+    /** Bridge binary: an optional override path; {@code null}/blank uses the bundled per-platform binary. */
     public record Bridge(
-            @DefaultValue("ble-bridge") String dir,
-            @DefaultValue("uv") String uvCommand) {
+            String binary) {
     }
 
     public record Storage(

@@ -14,19 +14,21 @@ the reassembled force curve — in **metric / SI units**.
 
 ## How it works
 
-macOS has no usable pure-JVM Bluetooth stack, so BLE runs in a tiny **Python bridge** (uv + `bleak`,
-talking to CoreBluetooth) that forwards *raw* notification frames. All the interesting logic —
-decoding, session lifecycle, storage — lives in a **Spring Boot (Java 26)** app.
+No platform has a usable pure-JVM Bluetooth stack, so BLE runs in a tiny **native bridge** — a small
+Rust binary (using [`btleplug`](https://github.com/deviceplug/btleplug): CoreBluetooth on macOS,
+BlueZ/WinRT elsewhere) that forwards *raw* notification frames. It's compiled per platform and
+**bundled inside the jar**, so at runtime there's no interpreter to install. All the interesting logic
+— decoding, session lifecycle, storage — lives in a **Spring Boot (Java 21)** app.
 
 ```
-   Concept2 PM5 ──BLE──▶ ble-bridge/bridge.py ──raw NDJSON frames (stdout)──▶ JVM app
-   (CoreBluetooth)       (uv · bleak, dumb pipe)                              │
-                                                                             ▼
+   Concept2 PM5 ──BLE──▶ ergpower-bridge (Rust) ──raw NDJSON frames (stdout)──▶ JVM app
+   (CoreBluetooth/…)     (btleplug, dumb pipe)                                 │
+                                                                              ▼
                                             FirmwareProfile decode → typed events (Flux)
-                                                                             │
-                                                          ┌──────────────────┴───────────────┐
+                                                                              │
+                                                          ┌───────────────────┴──────────────┐
                                                           ▼                                   ▼
-                                                   SessionStorage                      (future) live viewer
+                                                   SessionStorage                       live viewer (web/)
                                                    per-characteristic NDJSON
                                                    + session.json + summary.json + raw.ndjson
 ```
@@ -40,30 +42,32 @@ recorded capture (`ReplayPm5Source`) — so the whole pipeline is testable witho
 
 - **JDK 21 (LTS) or newer** — the project targets Java 21, so it also runs on 24 / 25 / 26. If your
   default `java` isn't 21+, select one with `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`.
-- **[uv](https://docs.astral.sh/uv/)** on your `PATH` — only if you connect to a real PM5 (the app
-  launches the Python BLE bridge via `uv run`). Not needed for replaying stored sessions.
-- **macOS** with Bluetooth permission granted to your terminal (again, only for a live PM5).
-- A Concept2 **PM5** monitor (only for live capture).
+- For a **live PM5**: **macOS** (v1's bundled bridge target) with Bluetooth permission granted, and a
+  Concept2 **PM5** monitor. Replaying stored sessions needs none of this.
 
-The browser dashboard is compiled into the jar and served by the Java app — **no Node/npm at runtime.**
+That's it — **no Python, no Node, no package manager at runtime.** The native BLE bridge and the browser
+dashboard are both compiled into the jar and used by the Java app directly.
 
-**To build**, additionally: a JDK + Maven (bundled `./mvnw`), and — for the web UI — the `package`
-build downloads its own private Node (build-time only; your machine needs no system Node/npm).
+**To build**, additionally: a JDK + Maven (bundled `./mvnw`), a **Rust toolchain** (`cargo`, e.g. via
+[rustup](https://rustup.rs)) for the bridge, and — for the web UI — a private Node the `package` build
+downloads itself. The Rust/Node builds can be skipped (`-Dnative.skip=true` / `-Dfrontend.skip=true`)
+to reuse existing artifacts for an offline build.
 
 ## Build
 
 ```sh
-./mvnw -q package                 # → target/ErgPower-0.0.1-SNAPSHOT.jar (bundles the web dashboard)
-./mvnw test                       # run the Java test suite (does NOT build the web UI — stays fast)
-./mvnw -q package -Dfrontend.skip=true   # Java-only jar, offline (reuses any existing web/dist)
+./mvnw -q package                 # → target/ErgPower-0.0.1-SNAPSHOT.jar (Java + web UI + native bridge)
+./mvnw test                       # run the Java test suite (does NOT build web/bridge — stays fast)
+./mvnw -q package -Dnative.skip=true -Dfrontend.skip=true   # reuse existing bridge/web (offline)
 ```
 
-`package` also compiles `web/` (React) and bundles it into the jar's `static/`, so a single
-`java -jar … serve` hosts the UI + API. The first web build fetches Node from nodejs.org.
+One `./mvnw package` builds everything into a single self-contained jar: the Java app, the `web/` React
+dashboard (bundled into `static/`), and the `bridge/` Rust binary (bundled into
+`native/<os>-<arch>/`). The bridge builds with `cargo`; the first web build fetches Node from nodejs.org.
 
 ## Usage
 
-The jar is a small CLI. Run it from the repo root (so `ble-bridge/` and `uv` resolve).
+The jar is self-contained. Run it from the repo root so relative paths (`sessions/`) resolve.
 
 ```sh
 # Live-capture: turn on the PM5, pick/row a piece — a session folder appears and closes itself.
@@ -127,10 +131,9 @@ curl -s -X DELETE http://localhost:8080/api/v1/source    # stop the active sourc
 For a live source, sessions **start and stop automatically** from the PM5 workout state — just row.
 Each piece is written to `sessions/session-<timestamp>/`.
 
-The bridge can also be run on its own:
+The native bridge can also be run on its own (after `cargo build --release`):
 ```sh
-cd ble-bridge
-uv run python bridge.py --scan        # list nearby PM5s (JSON on stdout)
+./bridge/target/release/ergpower-bridge --scan   # list nearby PM5s (JSON on stdout)
 ```
 
 ## Configuration
@@ -199,17 +202,20 @@ src/main/java/work/zing/ergpower/pm5/
 ├── api/         REST + SSE: LiveState, SourceManager, SessionCatalog, controllers
 ├── config/      ErgPowerBleProperties (@ConfigurationProperties)
 └── cli/         CaptureCommand (the CLI entry point)
-ble-bridge/      uv project: bridge.py (transport), spike.py, captures/ (reference fixture)
+bridge/          Rust BLE bridge (btleplug) — the native transport; built + bundled by `mvn package`
 web/             React + Vite browser dashboard (configurable widgets; types generated from the spec)
 openspec/        spec-driven change proposals + specs
 docs/reference/  spec index + how to fetch the (git-ignored) vendor PDFs
+src/test/resources/captures/  reference capture (real 289 m / 28-stroke row) anchoring the tests
 ```
 
 ## Development
 
 - Tests decode a real captured row and assert exact values — the regression anchor for the decoder,
   force-curve reassembly, storage recombination, auto start/stop, and firmware-profile divergence.
-- Targets **Java 21 (LTS)**; runs on 21 and newer. The bridge env is managed by `uv`.
+- Targets **Java 21 (LTS)**; runs on 21 and newer. The BLE bridge is a Rust (`cargo`) subproject in
+  `bridge/`, cross-platform via `btleplug`; v1 bundles the macOS binary (Linux/Windows are a
+  binary-only add later).
 
 ## Reference specs
 

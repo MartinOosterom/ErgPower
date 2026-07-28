@@ -33,6 +33,10 @@
              Skip with -Dfrontend.skip=true for a Java-only, offline build (reuses any existing dist). -->
         <frontend.skip>false</frontend.skip>
         <node.version>v22.11.0</node.version>
+        <!-- Native BLE bridge build (cargo). Skip with -Dnative.skip=true. native.classifier is set
+             by the host profile below (e.g. darwin-arm64) and names the in-jar bundle directory. -->
+        <native.skip>false</native.skip>
+        <native.classifier>unknown</native.classifier>
     </properties>
     <dependencies>
         <dependency>
@@ -158,7 +162,33 @@
                 </executions>
             </plugin>
 
-            <!-- Copy the built SPA into the jar's classpath static/ (served by Spring at /). -->
+            <!-- Build the native BLE bridge (bridge/, Rust) with the host's cargo, so one `./mvnw
+                 package` builds Java + web + bridge. Bound to prepare-package (not test). Skip with
+                 -Dnative.skip=true to reuse an existing binary for offline/Java-only builds. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>cargo-build-bridge</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <skip>${native.skip}</skip>
+                            <executable>cargo</executable>
+                            <workingDirectory>bridge</workingDirectory>
+                            <arguments>
+                                <argument>build</argument>
+                                <argument>--release</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Bundle the built SPA (static/) and the native bridge binary (native/<os>-<arch>/) into
+                 the jar's classpath. Declared after the frontend/cargo plugins so their outputs exist. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -176,9 +206,41 @@
                             </resources>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>copy-bridge-binary</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>copy-resources</goal></goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/native/${native.classifier}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/bridge/target/release</directory>
+                                    <includes>
+                                        <include>ergpower-bridge</include>
+                                        <include>ergpower-bridge.exe</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
+
+    <!-- Map the build host to the native classifier used for both the bundle path and Java's runtime
+         selection (BridgeBinary.classifier()). v1 covers macOS; add profiles for Linux/Windows later. -->
+    <profiles>
+        <profile>
+            <id>native-darwin-arm64</id>
+            <activation><os><family>mac</family><arch>aarch64</arch></os></activation>
+            <properties><native.classifier>darwin-arm64</native.classifier></properties>
+        </profile>
+        <profile>
+            <id>native-darwin-x64</id>
+            <activation><os><family>mac</family><arch>x86_64</arch></os></activation>
+            <properties><native.classifier>darwin-x64</native.classifier></properties>
+        </profile>
+    </profiles>
 
 </project>

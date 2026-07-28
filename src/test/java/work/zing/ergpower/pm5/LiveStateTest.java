@@ -26,7 +26,7 @@ import work.zing.ergpower.pm5.source.ReplayPm5Source;
 class LiveStateTest {
 
     private static final Path FIXTURE =
-            Path.of("ble-bridge/captures/2026-07-28_rowerg_432234859_289m_28strokes.ndjson");
+            Path.of("src/test/resources/captures/2026-07-28_rowerg_432234859_289m_28strokes.ndjson");
 
     @Test
     void aggregatesFixtureIntoSnapshotAndSse() {

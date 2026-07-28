@@ -24,6 +24,7 @@ import work.zing.ergpower.api.model.SourceType;
 import work.zing.ergpower.pm5.capture.SessionManager;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 import work.zing.ergpower.pm5.source.BlePm5Source;
+import work.zing.ergpower.pm5.source.BridgeBinary;
 import work.zing.ergpower.pm5.source.ReplayPm5Source;
 
 /**
@@ -64,7 +65,7 @@ public class SourceManager {
     public synchronized SourceStatus startBle(String device) {
         stop();
         String name = device != null && !device.isBlank() ? device : props.resolvedDeviceName();
-        BlePm5Source src = new BlePm5Source(Path.of(props.bridge().dir()), name, props.bridge().uvCommand());
+        BlePm5Source src = new BlePm5Source(BridgeBinary.resolve(props.bridge().binary()), name);
         src.setSampleRateMillis((int) props.capture().sampleRate().toMillis());
         src.setAutoReconnect(props.connect().autoReconnect());
         src.setProfileOverride(props.resolvedProfileOverride());
@@ -130,8 +131,8 @@ public class SourceManager {
 
     /** Scan for nearby PM5s via the bridge (blocking; run off the event loop). */
     public List<DiscoveredDevice> scanDevices() throws IOException {
-        List<String> cmd = List.of(props.bridge().uvCommand(), "run", "python", "bridge.py", "--scan");
-        Process p = new ProcessBuilder(cmd).directory(Path.of(props.bridge().dir()).toFile()).start();
+        Path binary = BridgeBinary.resolve(props.bridge().binary());
+        Process p = new ProcessBuilder(binary.toString(), "--scan").start();
         List<DiscoveredDevice> out = new ArrayList<>();
         try (BufferedReader reader = p.inputReader()) {
             String line;

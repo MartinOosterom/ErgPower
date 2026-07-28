@@ -24,7 +24,7 @@ class SessionManagerTest {
 
     @Test
     void opensAndFinalisesSessionsFromWorkoutState(@TempDir Path base) throws IOException {
-        BlePm5Source source = new BlePm5Source(Path.of("ble-bridge"), null); // never started
+        BlePm5Source source = new BlePm5Source(Path.of("unused-bridge-binary"), null); // never started
         SessionManager manager = new SessionManager(base, source, "test");
 
         manager.onEvent(status(0.0, 0));   // WAITTOBEGIN -> nothing

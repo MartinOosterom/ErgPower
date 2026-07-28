@@ -1,3 +1,0 @@
-# ignore ad-hoc captures except checked-in reference fixtures
-*.ndjson
-!2026-07-28_rowerg_432234859_289m_28strokes.ndjson

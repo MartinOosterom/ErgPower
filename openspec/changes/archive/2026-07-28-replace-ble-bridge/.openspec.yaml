@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-28
+goal: Replace the uv-managed Python/bleak BLE bridge with a bundled, per-platform
+  native (Rust/btleplug) binary over the same raw-frame stdio seam, so the app runs
+  with only a JVM (no Python/uv) on macOS, Linux, and Windows

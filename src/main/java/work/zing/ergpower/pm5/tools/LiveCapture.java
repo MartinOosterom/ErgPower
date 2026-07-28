@@ -8,11 +8,12 @@ import java.time.format.DateTimeFormatter;
 
 import work.zing.ergpower.pm5.capture.CaptureService;
 import work.zing.ergpower.pm5.source.BlePm5Source;
+import work.zing.ergpower.pm5.source.BridgeBinary;
 import work.zing.ergpower.pm5.storage.SessionMeta;
 
 /**
- * Standalone live capture (no Spring): connect to the PM5 through the uv bridge and stream a session
- * straight to disk. Equivalent to the {@code capture} CLI command; handy when running from raw
+ * Standalone live capture (no Spring): connect to the PM5 through the native bridge binary and stream a
+ * session straight to disk. Equivalent to the {@code capture} CLI command; handy when running from raw
  * classpath rather than the packaged jar.
  *
  * <pre>{@code
@@ -45,7 +46,7 @@ public final class LiveCapture {
         System.err.println("Starting live capture -> " + session.toAbsolutePath()
                 + (limit != null ? " for " + seconds + "s" : " until disconnect/Ctrl-C"));
         CaptureService.run(
-                new BlePm5Source(Path.of("ble-bridge"), name),
+                new BlePm5Source(BridgeBinary.resolve(null), name),
                 session,
                 new SessionMeta("ble", name, null, "0.0.1-SNAPSHOT"),
                 limit);

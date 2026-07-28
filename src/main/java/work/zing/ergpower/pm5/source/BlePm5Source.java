@@ -24,21 +24,22 @@ import work.zing.ergpower.pm5.firmware.FirmwareProfile;
 import work.zing.ergpower.pm5.firmware.FirmwareProfileRegistry;
 
 /**
- * Live {@link Pm5Source} backed by the uv-managed Python BLE bridge (design decisions D1–D4).
+ * Live {@link Pm5Source} backed by the native BLE bridge binary (design decisions D1–D4).
  *
- * <p>Launches {@code uv run python bridge.py} as a child process, reads its stdout NDJSON frames on a
- * virtual thread, decodes each into typed events via {@link Pm5Decoder}, and publishes them through a
- * multicast {@link reactor.core.publisher.Sinks sink}. The bridge does the BLE; all decoding stays
- * here. stderr is drained to the host log.
+ * <p>Launches the bundled, platform-specific bridge executable (see {@link BridgeBinary}) as a child
+ * process, reads its stdout NDJSON frames on a virtual thread, decodes each into typed events via
+ * {@link Pm5Decoder}, and publishes them through a multicast {@link reactor.core.publisher.Sinks sink}.
+ * The bridge does the BLE (cross-platform, via btleplug); all decoding stays here. stderr is drained to
+ * the host log. The wire protocol is identical to the previous Python bridge, so nothing here changed
+ * when the transport was reimplemented.
  *
- * <p>This first cut supervises the process minimally: when the bridge exits (disconnect, kill, error)
- * the stream completes. Automatic restart with backoff (task 5.2) is a later refinement.
+ * <p>This supervises the process minimally: when the bridge exits (disconnect, kill, error) the stream
+ * completes; the bridge itself handles BLE-level auto-reconnect with backoff.
  */
 public final class BlePm5Source implements Pm5Source, AutoCloseable {
 
-    private final Path bridgeDir;
+    private final Path binary;
     private final String deviceName;
-    private final String uvCommand;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -65,14 +66,9 @@ public final class BlePm5Source implements Pm5Source, AutoCloseable {
     private final Map<Integer, Integer> observedLengths = new ConcurrentHashMap<>();
     private volatile boolean fingerprintChecked;
 
-    public BlePm5Source(Path bridgeDir, String deviceName) {
-        this(bridgeDir, deviceName, "uv");
-    }
-
-    public BlePm5Source(Path bridgeDir, String deviceName, String uvCommand) {
-        this.bridgeDir = bridgeDir;
+    public BlePm5Source(Path binary, String deviceName) {
+        this.binary = binary;
         this.deviceName = deviceName;
-        this.uvCommand = uvCommand;
     }
 
     /** Status sample rate to request on connect (1000/500/250/100 ms), or {@code null} for PM5 default. */
@@ -92,7 +88,7 @@ public final class BlePm5Source implements Pm5Source, AutoCloseable {
 
     /** Launch the bridge and begin publishing. Idempotent-ish: call once per source. */
     public void start() throws IOException {
-        List<String> cmd = new ArrayList<>(List.of(uvCommand, "run", "python", "bridge.py"));
+        List<String> cmd = new ArrayList<>(List.of(binary.toString()));
         if (deviceName != null && !deviceName.isBlank()) {
             cmd.add("--name");
             cmd.add(deviceName);
@@ -104,7 +100,7 @@ public final class BlePm5Source implements Pm5Source, AutoCloseable {
         if (!autoReconnect) {
             cmd.add("--no-reconnect");
         }
-        process = new ProcessBuilder(cmd).directory(bridgeDir.toFile()).start();
+        process = new ProcessBuilder(cmd).start();
         Thread.ofVirtual().name("pm5-bridge-stdout").start(this::readFrames);
         Thread.ofVirtual().name("pm5-bridge-stderr").start(this::drainStderr);
     }
