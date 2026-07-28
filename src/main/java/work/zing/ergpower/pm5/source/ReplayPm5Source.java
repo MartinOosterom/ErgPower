@@ -10,6 +10,7 @@ import java.util.List;
 import reactor.core.publisher.Flux;
 
 import work.zing.ergpower.pm5.FrameCodec;
+import work.zing.ergpower.pm5.Pm5Frame;
 import work.zing.ergpower.pm5.decode.Pm5Decoder;
 import work.zing.ergpower.pm5.event.Pm5Event;
 
@@ -25,20 +26,63 @@ import work.zing.ergpower.pm5.event.Pm5Event;
 public final class ReplayPm5Source implements Pm5Source {
 
     private final Path capture;
+    private final Double speed; // null = as fast as possible (tests); set = timed playback
 
     public ReplayPm5Source(Path capture) {
+        this(capture, null);
+    }
+
+    /** @param speed real-time multiplier for timed playback (1.0 = real time); {@code null} = fast. */
+    public ReplayPm5Source(Path capture, Double speed) {
         this.capture = capture;
+        this.speed = speed;
     }
 
     @Override
     public Flux<Pm5Event> events() {
-        return Flux.defer(() -> {
-            try {
-                return Flux.fromIterable(decodeAll());
-            } catch (IOException e) {
-                return Flux.error(e);
+        if (speed == null) {
+            return Flux.defer(() -> {
+                try {
+                    return Flux.fromIterable(decodeAll());
+                } catch (IOException e) {
+                    return Flux.error(e);
+                }
+            });
+        }
+        return pacedEvents();
+    }
+
+    /** Timed playback: emit each frame's events honouring the captured inter-frame timing, scaled by speed. */
+    private Flux<Pm5Event> pacedEvents() {
+        double factor = speed <= 0 ? 1.0 : speed;
+        return Flux.create(sink -> Thread.ofVirtual().name("replay").start(() -> {
+            Pm5Decoder decoder = new Pm5Decoder();
+            try (BufferedReader reader = Files.newBufferedReader(capture)) {
+                String line;
+                double prevMono = Double.NaN;
+                while ((line = reader.readLine()) != null && !sink.isCancelled()) {
+                    if (line.isBlank()) {
+                        continue;
+                    }
+                    Pm5Frame frame = FrameCodec.parse(line);
+                    if (!Double.isNaN(prevMono)) {
+                        long waitMs = (long) Math.min(Math.max((frame.mono() - prevMono) / factor * 1000.0, 0), 5000);
+                        if (waitMs > 0) {
+                            Thread.sleep(waitMs);
+                        }
+                    }
+                    prevMono = frame.mono();
+                    for (Pm5Event event : decoder.decode(frame)) {
+                        sink.next(event);
+                    }
+                }
+                sink.complete();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                sink.error(e);
             }
-        });
+        }));
     }
 
     private List<Pm5Event> decodeAll() throws IOException {

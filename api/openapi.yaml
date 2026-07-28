@@ -56,6 +56,76 @@ paths:
             text/event-stream:
               schema: { $ref: "#/components/schemas/LiveEvent" }
 
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List stored sessions.
+      tags: [source]
+      responses:
+        "200":
+          description: Stored sessions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SessionSummary" }
+
+  /source:
+    get:
+      operationId: getSource
+      summary: The active source feeding the live pipeline.
+      tags: [source]
+      responses:
+        "200":
+          description: Current source status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceStatus" }
+    post:
+      operationId: startSource
+      summary: Select and start the source (live PM5 or replay a stored session).
+      tags: [source]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SourceRequest" }
+      responses:
+        "200":
+          description: The source that was started.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceStatus" }
+        "400":
+          description: Invalid request (e.g. unknown or non-replayable session).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    delete:
+      operationId: stopSource
+      summary: Stop the active source.
+      tags: [source]
+      responses:
+        "200":
+          description: Source stopped; current status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceStatus" }
+
+  /devices:
+    get:
+      operationId: scanDevices
+      summary: Scan for nearby PM5s (for the connect picker).
+      tags: [source]
+      responses:
+        "200":
+          description: Nearby PM5s.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DiscoveredDevice" }
+
 components:
   schemas:
     ConnectionState:
@@ -181,6 +251,53 @@ components:
         - $ref: "#/components/schemas/StrokeSummary"
         - $ref: "#/components/schemas/ForceCurve"
         - $ref: "#/components/schemas/Heartbeat"
+
+    SessionSummary:
+      type: object
+      properties:
+        id: { type: string, description: "Session folder name." }
+        startedAt: { type: string, nullable: true }
+        device: { type: string, nullable: true }
+        firmware: { type: string, nullable: true }
+        distanceM: { type: number, nullable: true }
+        strokes: { type: integer, nullable: true }
+        durationS: { type: number, nullable: true }
+        avgPowerW: { type: integer, nullable: true }
+        peakPowerW: { type: integer, nullable: true }
+        replayable: { type: boolean, description: "Has raw frames, so it can be replayed." }
+      required: [id, replayable]
+
+    SourceType:
+      type: string
+      enum: [NONE, BLE, REPLAY]
+
+    SourceRequest:
+      type: object
+      description: >
+        Select a source. type=ble connects to a PM5 (optional device name); type=replay plays a stored
+        session (sessionId, optional speed multiplier, default 1.0 = real time).
+      properties:
+        type: { type: string, enum: [ble, replay] }
+        device: { type: string, nullable: true }
+        sessionId: { type: string, nullable: true }
+        speed: { type: number, nullable: true }
+      required: [type]
+
+    SourceStatus:
+      type: object
+      properties:
+        sourceType: { $ref: "#/components/schemas/SourceType" }
+        connection: { $ref: "#/components/schemas/ConnectionStatus" }
+        sessionId: { type: string, nullable: true, description: "The session being replayed, if any." }
+      required: [sourceType, connection]
+
+    DiscoveredDevice:
+      type: object
+      properties:
+        name: { type: string }
+        address: { type: string }
+        rssi: { type: integer, nullable: true }
+      required: [name, address]
 
     Problem:
       type: object

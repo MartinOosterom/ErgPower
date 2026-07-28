@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-28
+goal: An end-user-composable live dashboard (pick/arrange widgets incl. a
+  points-only ghosted force curve) built on the existing live-api

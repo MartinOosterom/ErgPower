@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-28
+goal: A source-control API so the browser can connect to an erg or replay a
+  saved session, both feeding the same live stream

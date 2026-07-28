@@ -1,0 +1,19 @@
+// Handy aliases over the spec-generated schema. Everything the app uses is derived from
+// `api/openapi.yaml` (via `npm run gen`) — a contract drift fails the TS build (spec stays leading).
+import type { components } from './schema'
+
+export type ConnectionStatus = components['schemas']['ConnectionStatus']
+export type ConnectionState = components['schemas']['ConnectionState']
+export type WorkoutState = components['schemas']['WorkoutState']
+export type WorkoutPhase = components['schemas']['WorkoutPhase']
+export type WorkoutDurationType = components['schemas']['WorkoutDurationType']
+export type LiveMetrics = components['schemas']['LiveMetrics']
+export type StrokeSummary = components['schemas']['StrokeSummary']
+export type ForceCurve = components['schemas']['ForceCurve']
+export type LiveSnapshot = components['schemas']['LiveSnapshot']
+export type Heartbeat = components['schemas']['Heartbeat']
+export type SessionSummary = components['schemas']['SessionSummary']
+export type SourceStatus = components['schemas']['SourceStatus']
+export type SourceType = components['schemas']['SourceType']
+export type SourceRequest = components['schemas']['SourceRequest']
+export type DiscoveredDevice = components['schemas']['DiscoveredDevice']

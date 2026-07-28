@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.function.Supplier;
+
+import jakarta.annotation.PostConstruct;
 
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
@@ -13,7 +16,6 @@ import reactor.core.publisher.Sinks;
 
 import work.zing.ergpower.api.model.ConnectionState;
 import work.zing.ergpower.api.model.ConnectionStatus;
-import work.zing.ergpower.api.model.DeviceInfo;
 import work.zing.ergpower.api.model.ForceCurve;
 import work.zing.ergpower.api.model.Heartbeat;
 import work.zing.ergpower.api.model.LiveMetrics;
@@ -28,22 +30,21 @@ import work.zing.ergpower.pm5.event.AdditionalStrokeData;
 import work.zing.ergpower.pm5.event.GeneralStatus;
 import work.zing.ergpower.pm5.event.Pm5Event;
 import work.zing.ergpower.pm5.event.StrokeData;
-import work.zing.ergpower.pm5.source.BlePm5Source;
 
 /**
  * Aggregates the live PM5 event stream into a coherent current state (for {@code /live/snapshot} and
- * {@code /connection}) and broadcasts named SSE events (for {@code /live/stream}). A single processing
- * pipeline updates the rolling state and emits SSE, so there are no cross-subscriber races
- * (design decisions D2, D3, D8). Always a bean; empty until {@link #bind} attaches a source in serve mode.
+ * {@code /connection}) and broadcasts named SSE events (for {@code /live/stream}). Source-agnostic: the
+ * {@code SourceManager} feeds it events via {@link #onEvent} and supplies the connection status via
+ * {@link #setConnectionProvider}, so it serves live or replayed sources identically.
  */
 @Component
 public class LiveState {
 
     private final Sinks.Many<ServerSentEvent<Object>> sse = Sinks.many().multicast().onBackpressureBuffer();
 
-    private volatile BlePm5Source source;
+    private volatile Supplier<ConnectionStatus> connectionProvider =
+            () -> new ConnectionStatus().state(ConnectionState.DISCONNECTED).since(OffsetDateTime.now());
 
-    // rolling values merged across characteristics
     private volatile WorkoutState workout;
     private volatile StrokeSummary lastStroke;
     private volatile ForceCurve lastForceCurve;
@@ -54,14 +55,31 @@ public class LiveState {
     private volatile Double timeLeftS, distanceLeftM, projectedTimeS, splitAvgPaceS;
     private volatile boolean hasMetrics;
 
-    /** Attach the live source (serve mode): subscribe for state + SSE, and emit periodic connection/heartbeat. */
-    public void bind(BlePm5Source source) {
-        this.source = source;
-        source.events().subscribe(this::onEvent);
+    @PostConstruct
+    void startHeartbeat() {
         Flux.interval(Duration.ofSeconds(5)).subscribe(i -> {
             emit("connection", connectionStatus());
             emit("heartbeat", new Heartbeat().t(OffsetDateTime.now()));
         });
+    }
+
+    /** Set how connection status is built (the active source provides it); pushes a connection event. */
+    public void setConnectionProvider(Supplier<ConnectionStatus> provider) {
+        this.connectionProvider = provider;
+        emit("connection", connectionStatus());
+    }
+
+    /** Clear rolling state — called when the active source changes. */
+    public void reset() {
+        workout = null;
+        lastStroke = null;
+        lastForceCurve = null;
+        lastStrokeData = null;
+        elapsedTimeS = distanceM = dragFactor = paceS = avgPaceS = 0;
+        powerW = strokeRate = totalCalories = 0;
+        heartRateBpm = splitAvgPowerW = projectedDistanceM = null;
+        timeLeftS = distanceLeftM = projectedTimeS = splitAvgPaceS = null;
+        hasMetrics = false;
     }
 
     /** Process one event: update the rolling snapshot and broadcast the relevant SSE events. */
@@ -108,18 +126,8 @@ public class LiveState {
         }
     }
 
-    // --- snapshot / connection (read on demand) ---
-
     public ConnectionStatus connectionStatus() {
-        BlePm5Source s = source;
-        ConnectionStatus cs = new ConnectionStatus().state(mapState(s == null ? null : s.connectionState()));
-        if (s != null) {
-            if (s.connectedDevice() != null) {
-                cs.device(new DeviceInfo().name(s.connectedDevice()).address(s.connectedAddress()));
-            }
-            cs.firmware(s.connectedFirmware()).profileId(s.activeProfileId());
-        }
-        return cs.since(OffsetDateTime.now());
+        return connectionProvider.get();
     }
 
     public LiveSnapshot snapshot() {
@@ -134,8 +142,6 @@ public class LiveState {
     public Flux<ServerSentEvent<Object>> liveEvents() {
         return sse.asFlux();
     }
-
-    // --- mapping ---
 
     private LiveMetrics metrics() {
         return new LiveMetrics()
@@ -183,20 +189,7 @@ public class LiveState {
             case 0, 2 -> WorkoutPhase.WAITING;
             case 1, 4, 5, 6, 7 -> WorkoutPhase.ROWING;
             case 3, 8, 9 -> WorkoutPhase.RESTING;
-            default -> WorkoutPhase.ENDED; // 10 END, 11 TERMINATE, 12 LOGGED
-        };
-    }
-
-    private static ConnectionState mapState(String s) {
-        if (s == null) {
-            return ConnectionState.DISCONNECTED;
-        }
-        return switch (s) {
-            case "searching" -> ConnectionState.SEARCHING;
-            case "connecting" -> ConnectionState.CONNECTING;
-            case "connected" -> ConnectionState.CONNECTED;
-            case "reconnecting" -> ConnectionState.RECONNECTING;
-            default -> ConnectionState.DISCONNECTED;
+            default -> WorkoutPhase.ENDED;
         };
     }
 

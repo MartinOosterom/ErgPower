@@ -82,11 +82,13 @@ async def find_pm5(name: str | None, timeout: float):
 
 
 async def scan():
+    """List nearby PM5s as one JSON object per line on stdout (name/address/rssi); logs to stderr."""
     devices = await BleakScanner.discover(timeout=8.0, return_adv=True)
     for address, (dev, adv) in devices.items():
         nm = adv.local_name or (dev.name if dev else None) or "?"
         if str(nm).upper().startswith("PM5"):
             log(f"PM5: {nm}  {address}  rssi={adv.rssi}")
+            out({"name": str(nm), "address": str(address), "rssi": adv.rssi})
 
 
 async def write_sample_rate(client, ms: int):
