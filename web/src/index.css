@@ -263,6 +263,8 @@ input {
 }
 .chart-box {
   height: 320px;
+  min-width: 0; /* let the 1fr grid track shrink; without this the chart canvas overflows the window */
+  overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
