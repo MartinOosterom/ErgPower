@@ -8,11 +8,12 @@ interface StatConfig {
 
 function StatTile({ config }: { config: StatConfig }) {
   const metrics = useLiveStore((s) => s.metrics)
+  const stroke = useLiveStore((s) => s.lastStroke)
   const desc = metricByKey(config.metric)
   return (
     <div className="stat-tile">
       <div className="stat-value">
-        {desc.fmt(desc.get(metrics))}
+        {desc.fmt(desc.get({ metrics, stroke }))}
         {desc.unit && <span className="stat-unit">{desc.unit}</span>}
       </div>
       <div className="stat-label">{desc.label}</div>
@@ -22,7 +23,7 @@ function StatTile({ config }: { config: StatConfig }) {
 
 export const statTileDef: WidgetDef<StatConfig> = {
   type: 'stat',
-  name: 'Stat tile',
+  name: 'Value',
   category: 'metric',
   requires: ['metrics'],
   defaultConfig: { metric: 'power' },
@@ -31,7 +32,7 @@ export const statTileDef: WidgetDef<StatConfig> = {
       key: 'metric',
       label: 'Metric',
       type: 'select',
-      options: METRICS.map((m) => ({ value: m.key, label: m.label })),
+      options: METRICS.filter((m) => m.modes.includes('value')).map((m) => ({ value: m.key, label: m.label })),
     },
   ],
   defaultLayout: { w: 3, h: 2 },

@@ -71,18 +71,26 @@ GET /sessions · /devices ─▶ SourceSelect ─▶ POST /source ─▶ (backen
 ```
 
 - **`src/api/`** — generated `schema.d.ts`, typed aliases, and the `openapi-fetch` client.
-- **`src/store/liveStore.ts`** — the single SSE connection, snapshot resync on reconnect, rolling
-  history buffers, and `AVAILABLE_DATA` (which data keys exist today).
-- **`src/widgets/`** — `WidgetDef` contract + registry, and the core widgets (StatTile, Trend,
-  ForceCurve, GoalProgress, ConnectionStatus, WorkoutPhase). Widgets declare `requires[]`; the palette
-  disables any whose data the API doesn't serve yet (e.g. the placeholder splits/summary widgets).
+- **`src/metrics.ts`** — the **metric registry**: every displayable measurement (from live metrics +
+  the last stroke) with its label/unit, how to read it, and which **display modes** are meaningful
+  (`value` tile and/or `graph`). The value and graph widgets are both driven by this — no per-metric
+  hardcoding.
+- **`src/store/liveStore.ts`** — the single SSE connection, snapshot resync on reconnect, a rolling
+  history buffer **per graphable metric**, and `AVAILABLE_DATA` (which data keys exist today).
+- **`src/widgets/`** — `WidgetDef` contract + registry, and the core widgets: a `Value` tile and a
+  `Graph` (both parameterized over the metric registry), plus ForceCurve, GoalProgress,
+  ConnectionStatus, WorkoutPhase. Widgets declare `requires[]`; the palette is a **metric → mode
+  picker** and disables anything whose data the API doesn't serve yet (e.g. the placeholder
+  splits/summary widgets), offering `graph` only for graphable metrics.
 - **`src/dashboard/`** — the grid renderer, palette, per-widget config panel, presets
-  ("Minimal HUD", "Full panel"), and localStorage persistence.
+  ("Minimal HUD", "Full panel"), and **named profiles** (`profiles.ts`) persisted server-side via the
+  `/dashboards` API; the *active* selection is per-device (localStorage).
 - **`src/source/`** — the source-selection entry screen and the active-source indicator.
 
 ## Scope
 
 This delivers a live HUD. Widgets that need data the API doesn't serve yet (splits, end-of-piece
 summary, history/compare) are **registered but disabled** — they'll light up unchanged when the API
-grows. Server-persisted/shareable dashboards and auth are out of scope (layouts persist to
-localStorage).
+grows. Dashboards are saved as **named profiles** stored server-side as JSON (one file per profile, via
+`/dashboards`); only the active-profile selection is per-device. Shareable/public dashboards and auth
+remain out of scope (single-user).

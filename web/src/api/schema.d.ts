@@ -111,6 +111,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved dashboard profiles. */
+        get: operations["listDashboards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Profile name (must be a safe filename — no path separators or ".."). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** Fetch one dashboard profile. */
+        get: operations["getDashboard"];
+        /** Create or replace a dashboard profile. */
+        put: operations["putDashboard"];
+        post?: never;
+        /** Delete a dashboard profile. */
+        delete: operations["deleteDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -239,6 +278,17 @@ export interface components {
             name: string;
             address: string;
             rssi?: number | null;
+        };
+        /** @description Opaque dashboard configuration (widgets + grid layout + per-widget config). The server stores and returns it verbatim and does NOT interpret its internals, so the browser's widget model can evolve without a contract change. */
+        DashboardConfig: {
+            [key: string]: unknown;
+        };
+        DashboardSummary: {
+            name: string;
+        };
+        Dashboard: {
+            name: string;
+            config: components["schemas"]["DashboardConfig"];
         };
         /** @description RFC 7807 problem details. */
         Problem: {
@@ -425,6 +475,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiscoveredDevice"][];
+                };
+            };
+        };
+    };
+    listDashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved dashboard profiles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummary"][];
+                };
+            };
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Profile name (must be a safe filename — no path separators or ".."). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            /** @description No such profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    putDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Profile name (must be a safe filename — no path separators or ".."). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardConfig"];
+            };
+        };
+        responses: {
+            /** @description The stored profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            /** @description Invalid profile name. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Profile name (must be a safe filename — no path separators or ".."). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

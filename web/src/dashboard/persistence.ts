@@ -1,25 +1,5 @@
-import type { DashboardConfig } from './dashboardTypes'
-import { DEFAULT_PRESET, PRESETS } from './presets'
-
-const KEY = 'ergpower.dashboard'
-
-export function loadDashboard(): DashboardConfig {
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (raw) return JSON.parse(raw) as DashboardConfig
-  } catch {
-    // corrupt/unavailable storage → fall back to a preset
-  }
-  return PRESETS[DEFAULT_PRESET]()
-}
-
-export function saveDashboard(config: DashboardConfig): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(config))
-  } catch {
-    // storage full/disabled — non-fatal
-  }
-}
+// Dashboard profiles are persisted server-side via the /dashboards API (see profiles.ts); this module
+// keeps only the widget-id helper.
 
 let idSeq = 0
 export function newWidgetId(type: string): string {

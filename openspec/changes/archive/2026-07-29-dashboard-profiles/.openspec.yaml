@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-29
+goal: Named, switchable dashboard profiles persisted server-side as JSON (one file
+  per profile) via a small REST API; the active selection stays per-device

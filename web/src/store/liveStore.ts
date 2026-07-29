@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { api, LIVE_STREAM_URL } from '../api/client'
+import { GRAPH_METRICS } from '../metrics'
 import type {
   ConnectionStatus,
   ForceCurve,
@@ -9,17 +10,14 @@ import type {
   WorkoutState,
 } from '../api/types'
 
-/** One time-stamped numeric sample (x = PM5 elapsed seconds) for trend widgets. */
+/** One time-stamped numeric sample (x = PM5 elapsed seconds) for graph widgets. */
 export interface HistoryPoint {
   t: number
   v: number
 }
 
-export interface HistoryBuffers {
-  power: HistoryPoint[]
-  pace: HistoryPoint[]
-  hr: HistoryPoint[]
-}
+/** Rolling history keyed by metric key (one buffer per graphable metric). */
+export type HistoryBuffers = Record<string, HistoryPoint[]>
 
 /** The data keys a widget can require. Some (splits/summary) are not yet served by the API. */
 export type DataKey =
@@ -64,7 +62,8 @@ interface LiveStore {
   reset: () => void
 }
 
-const emptyBuffers = (): HistoryBuffers => ({ power: [], pace: [], hr: [] })
+const emptyBuffers = (): HistoryBuffers =>
+  Object.fromEntries(GRAPH_METRICS.map((d) => [d.key, [] as HistoryPoint[]]))
 
 const emptyData = () => ({
   connection: null,
@@ -89,11 +88,15 @@ function pushCapped(buf: HistoryPoint[], point: HistoryPoint): HistoryPoint[] {
 export const useLiveStore = create<LiveStore>((set, get) => {
   const applyMetrics = (m: LiveMetrics) => {
     const t = m.elapsedTimeS ?? 0
+    const src = { metrics: m, stroke: get().lastStroke }
     const h = get().history
-    const history: HistoryBuffers = {
-      power: pushCapped(h.power, { t, v: m.powerW ?? 0 }),
-      pace: m.paceSecondsPer500 != null ? pushCapped(h.pace, { t, v: m.paceSecondsPer500 }) : h.pace,
-      hr: m.heartRateBpm != null ? pushCapped(h.hr, { t, v: m.heartRateBpm }) : h.hr,
+    // Sample every graphable metric at the metrics cadence, using the latest metrics + last stroke.
+    const history: HistoryBuffers = { ...h }
+    for (const desc of GRAPH_METRICS) {
+      const v = desc.get(src)
+      if (v != null) {
+        history[desc.key] = pushCapped(h[desc.key] ?? [], { t, v })
+      }
     }
     set({ metrics: m, history })
   }

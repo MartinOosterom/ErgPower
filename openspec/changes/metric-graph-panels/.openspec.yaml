@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-29
+goal: Any measured value can be shown as a value tile or a value-vs-time graph,
+  driven by one metric registry with per-metric display-mode flags

@@ -26,3 +26,11 @@ export function fmtClock(v: number | null): string {
 export function fmtMeters(v: number | null): string {
   return v == null ? '—' : v.toFixed(0)
 }
+
+export function fmt1(v: number | null): string {
+  return v == null ? '—' : v.toFixed(1)
+}
+
+export function fmt2(v: number | null): string {
+  return v == null ? '—' : v.toFixed(2)
+}

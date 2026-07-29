@@ -13,6 +13,7 @@ servers:
 tags:
   - name: connection
   - name: live
+  - name: dashboards
 
 paths:
   /connection:
@@ -125,6 +126,75 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/DiscoveredDevice" }
+
+  /dashboards:
+    get:
+      operationId: listDashboards
+      summary: List saved dashboard profiles.
+      tags: [dashboards]
+      responses:
+        "200":
+          description: Saved dashboard profiles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DashboardSummary" }
+
+  /dashboards/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        description: Profile name (must be a safe filename — no path separators or "..").
+        schema: { type: string }
+    get:
+      operationId: getDashboard
+      summary: Fetch one dashboard profile.
+      tags: [dashboards]
+      responses:
+        "200":
+          description: The dashboard profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "404":
+          description: No such profile.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    put:
+      operationId: putDashboard
+      summary: Create or replace a dashboard profile.
+      tags: [dashboards]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardConfig" }
+      responses:
+        "200":
+          description: The stored profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "400":
+          description: Invalid profile name.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    delete:
+      operationId: deleteDashboard
+      summary: Delete a dashboard profile.
+      tags: [dashboards]
+      responses:
+        "204":
+          description: Deleted.
+        "404":
+          description: No such profile.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
 
 components:
   schemas:
@@ -298,6 +368,27 @@ components:
         address: { type: string }
         rssi: { type: integer, nullable: true }
       required: [name, address]
+
+    DashboardConfig:
+      type: object
+      additionalProperties: true
+      description: >
+        Opaque dashboard configuration (widgets + grid layout + per-widget config). The server stores
+        and returns it verbatim and does NOT interpret its internals, so the browser's widget model can
+        evolve without a contract change.
+
+    DashboardSummary:
+      type: object
+      properties:
+        name: { type: string }
+      required: [name]
+
+    Dashboard:
+      type: object
+      properties:
+        name: { type: string }
+        config: { $ref: "#/components/schemas/DashboardConfig" }
+      required: [name, config]
 
     Problem:
       type: object

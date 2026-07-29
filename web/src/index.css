@@ -196,6 +196,12 @@ input {
   background: var(--panel-2);
   border-bottom: 1px solid var(--border);
 }
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .palette {
   display: flex;
   flex-wrap: wrap;
@@ -205,6 +211,32 @@ input {
   margin-left: 6px;
   font-size: 0.75em;
   color: var(--muted);
+}
+.metric-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 12px;
+  margin-top: 8px;
+  max-height: 40vh;
+  overflow: auto;
+  width: 100%;
+}
+.metric-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.metric-name {
+  flex: 1;
+  font-size: 0.85em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mode-btn {
+  padding: 2px 8px;
+  font-size: 0.8em;
 }
 .content {
   display: flex;
