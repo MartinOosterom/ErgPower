@@ -128,6 +128,10 @@ curl -s -X POST http://localhost:8080/api/v1/source -H 'content-type: applicatio
 
 curl -s  http://localhost:8080/api/v1/source            # what's currently feeding the view
 curl -s -X DELETE http://localhost:8080/api/v1/source    # stop the active source
+
+# Download a stored session as a Garmin .FIT rowing activity (records + laps + summary) — upload it
+# to Strava / Garmin Connect / Concept2 Logbook. The viewer also shows a ".fit" link per session.
+curl -s -o session.fit  http://localhost:8080/api/v1/sessions/<id>/export.fit
 ```
 
 For a live source, sessions **start and stop automatically** from the PM5 workout state — just row.

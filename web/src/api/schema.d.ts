@@ -111,6 +111,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{id}/export.fit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a stored session as a Garmin .FIT rowing activity.
+         * @description Returns the session as a FIT activity file (records, per-split laps, and a rowing session summary) for upload to Strava / Garmin Connect / Concept2 Logbook. The controller is hand-written (binary streaming), like /live/stream.
+         */
+        get: operations["exportSessionFit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards": {
         parameters: {
             query?: never;
@@ -475,6 +495,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiscoveredDevice"][];
+                };
+            };
+        };
+    };
+    exportSessionFit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session as a FIT activity file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.ant.fit": string;
+                };
+            };
+            /** @description No such session. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

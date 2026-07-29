@@ -14,6 +14,7 @@ tags:
   - name: connection
   - name: live
   - name: dashboards
+  - name: export
 
 paths:
   /connection:
@@ -126,6 +127,32 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/DiscoveredDevice" }
+
+  /sessions/{id}/export.fit:
+    get:
+      operationId: exportSessionFit
+      summary: Download a stored session as a Garmin .FIT rowing activity.
+      description: >
+        Returns the session as a FIT activity file (records, per-split laps, and a rowing session
+        summary) for upload to Strava / Garmin Connect / Concept2 Logbook. The controller is
+        hand-written (binary streaming), like /live/stream.
+      tags: [export]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The session as a FIT activity file.
+          content:
+            application/vnd.ant.fit:
+              schema: { type: string, format: binary }
+        "404":
+          description: No such session.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
 
   /dashboards:
     get:

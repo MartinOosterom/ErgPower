@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-29
+goal: Download a stored session as a Garmin .FIT rowing activity (records + laps +
+  session summary) so it can be uploaded to Strava / Garmin Connect / Concept2 Logbook

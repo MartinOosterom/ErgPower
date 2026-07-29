@@ -95,13 +95,23 @@ export function SourceSelect({ onStarted }: { onStarted: () => void }) {
                       {s.avgPowerW != null ? ` · ${s.avgPowerW} W avg` : ''}
                     </div>
                   </div>
-                  <button
-                    disabled={busy || !s.replayable}
-                    title={s.replayable ? '' : 'no raw frames — not replayable'}
-                    onClick={() => void start({ type: 'replay', sessionId: s.id, speed })}
-                  >
-                    {s.replayable ? 'Replay' : 'N/A'}
-                  </button>
+                  <div className="list-actions">
+                    <a
+                      className="dl-link"
+                      href={`/api/v1/sessions/${encodeURIComponent(s.id)}/export.fit`}
+                      download={`${s.id}.fit`}
+                      title="Download as a Garmin .FIT activity"
+                    >
+                      .fit
+                    </a>
+                    <button
+                      disabled={busy || !s.replayable}
+                      title={s.replayable ? '' : 'no raw frames — not replayable'}
+                      onClick={() => void start({ type: 'replay', sessionId: s.id, speed })}
+                    >
+                      {s.replayable ? 'Replay' : 'N/A'}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
