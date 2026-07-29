@@ -37,6 +37,10 @@ build/
 /dashboards/
 *.tsbuildinfo
 
+### Local secrets/overrides (e.g. LLM api keys — see application.properties spring.config.import)
+/config/
+*.local.properties
+
 ### macOS
 .DS_Store
 **/.DS_Store

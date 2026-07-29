@@ -3,18 +3,20 @@ import type { EChartsOption } from 'echarts'
 
 import { api } from '../api/client'
 import { EChart } from '../components/EChart'
-import type { ScoreMetric, SessionAnalysis } from '../api/types'
+import type { CoachResult, LlmStatus, ScoreMetric, SessionAnalysis } from '../api/types'
 
 const ACCENT = '#38bdf8'
 
 /**
  * The deterministic technique-analysis view for one stored session: a Kleshnev-grounded scorecard, the
  * mean±spread drive-force curve, per-feature drift trends, a whole-session force heatmap, and fault
- * flags. Renders fully with no LLM (an AI "coach" is a later change).
+ * flags. Renders fully with no LLM; when a provider is configured (GET /integrations/llm), an optional
+ * "AI Coach" panel narrates the analysis on demand (change add-llm-coach).
  */
 export function AnalysisScreen({ id, onBack }: { id: string; onBack: () => void }) {
   const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [llm, setLlm] = useState<LlmStatus | null>(null)
 
   useEffect(() => {
     void (async () => {
@@ -23,6 +25,14 @@ export function AnalysisScreen({ id, onBack }: { id: string; onBack: () => void 
       else setAnalysis(data)
     })()
   }, [id])
+
+  // Is an LLM coach configured? Only then do we show the panel (deterministic view is complete without it).
+  useEffect(() => {
+    void (async () => {
+      const { data } = await api.GET('/integrations/llm')
+      if (data) setLlm(data)
+    })()
+  }, [])
 
   const meanOption = useMemo<EChartsOption | null>(() => {
     const band = analysis?.meanCurve ?? []
@@ -114,6 +124,8 @@ export function AnalysisScreen({ id, onBack }: { id: string; onBack: () => void 
         </section>
       )}
 
+      {llm?.configured && <CoachPanel id={id} llm={llm} />}
+
       <section className="analysis-charts">
         {meanOption && <div className="chart-box"><EChart option={meanOption} /></div>}
         {heatmapOption && <div className="chart-box"><EChart option={heatmapOption} /></div>}
@@ -124,6 +136,39 @@ export function AnalysisScreen({ id, onBack }: { id: string; onBack: () => void 
         ))}
       </section>
     </div>
+  )
+}
+
+/**
+ * Optional AI coach: grounded natural-language coaching generated on demand from this session's
+ * deterministic analysis. Shown only when a provider is configured; the model narrates the numbers.
+ */
+function CoachPanel({ id, llm }: { id: string; llm: LlmStatus }) {
+  const [coaching, setCoaching] = useState<CoachResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const generate = async () => {
+    setBusy(true)
+    setErr(null)
+    const { data, error } = await api.GET('/sessions/{id}/coach', { params: { path: { id } } })
+    if (error || !data) setErr('Coaching is unavailable right now.')
+    else setCoaching(data)
+    setBusy(false)
+  }
+
+  return (
+    <section className="coach-panel">
+      <div className="coach-head">
+        <div className="coach-title">AI Coach <span className="coach-provider">{llm.provider}{llm.model ? ` · ${llm.model}` : ''}</span></div>
+        <button className="coach-btn" onClick={() => void generate()} disabled={busy}>
+          {busy ? 'Coaching…' : coaching ? 'Regenerate' : 'Generate coaching'}
+        </button>
+      </div>
+      {err && <div className="coach-error">{err}</div>}
+      {coaching && <p className="coach-text">{coaching.text}</p>}
+      {!coaching && !err && <p className="coach-hint">Grounded in the metrics above — no raw curves leave your machine unless you configure a cloud provider.</p>}
+    </section>
   )
 }
 

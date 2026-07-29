@@ -257,16 +257,66 @@ input {
 }
 .analysis-charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
   padding: 16px;
 }
 .chart-box {
-  height: 280px;
+  height: 320px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 6px;
+}
+.coach-panel {
+  margin: 0 16px 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.coach-title {
+  font-weight: 600;
+}
+.coach-provider {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.82em;
+}
+.coach-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.coach-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.coach-text {
+  margin: 10px 0 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.coach-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.coach-error {
+  margin: 8px 0 0;
+  color: var(--bad);
+  font-size: 0.9em;
 }
 .list-sub {
   color: var(--muted);

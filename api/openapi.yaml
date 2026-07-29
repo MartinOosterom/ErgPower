@@ -16,6 +16,7 @@ tags:
   - name: dashboards
   - name: export
   - name: analysis
+  - name: coach
 
 paths:
   /connection:
@@ -178,6 +179,49 @@ paths:
               schema: { $ref: "#/components/schemas/SessionAnalysis" }
         "404":
           description: No such session.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /integrations/llm:
+    get:
+      operationId: getLlmStatus
+      summary: Whether an LLM coach provider is configured (so the UI can show the panel).
+      tags: [coach]
+      responses:
+        "200":
+          description: LLM coach status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LlmStatus" }
+
+  /sessions/{id}/coach:
+    get:
+      operationId: getSessionCoach
+      summary: LLM coaching for a stored session (only when a provider is configured).
+      description: >
+        Grounded natural-language technique coaching built from the session's deterministic analysis
+        (features + scorecard + flags) and a Kleshnev rubric. Optional — 409 when no provider is
+        configured. The model never sees raw curves.
+      tags: [coach]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Coaching text and the model that produced it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachResult" }
+        "404":
+          description: No such session.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "409":
+          description: No LLM provider configured.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -538,6 +582,21 @@ components:
         message: { type: string }
         count: { type: integer, nullable: true, description: "Strokes affected, where applicable." }
       required: [code, severity, message]
+
+    LlmStatus:
+      type: object
+      properties:
+        configured: { type: boolean, description: "True if an LLM coach provider is set up." }
+        provider: { type: string, nullable: true, description: "e.g. ollama | openai | anthropic." }
+        model: { type: string, nullable: true }
+      required: [configured]
+
+    CoachResult:
+      type: object
+      properties:
+        model: { type: string, description: "The model that produced the coaching." }
+        text: { type: string, description: "Natural-language technique coaching." }
+      required: [model, text]
 
     Problem:
       type: object

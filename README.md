@@ -139,6 +139,11 @@ curl -s -o session.fit  http://localhost:8080/api/v1/sessions/<id>/export.fit
 # gradient, peak position, finish plateau…), a mean±band curve, drift trends, a per-stroke heatmap, and
 # fault flags. No model needed. The viewer shows an "Analyze" button per session.
 curl -s  http://localhost:8080/api/v1/sessions/<id>/analysis
+
+# Optional LLM coach (see "AI coach" below). Is a provider configured?
+curl -s  http://localhost:8080/api/v1/integrations/llm            # {"configured":true,"provider":"ollama",...}
+# Grounded natural-language coaching for a session (200 when configured; 409 when not).
+curl -s  http://localhost:8080/api/v1/sessions/<id>/coach
 ```
 
 For a live source, sessions **start and stop automatically** from the PM5 workout state — just row.
@@ -171,6 +176,37 @@ java -jar target/ErgPower-0.0.1-SNAPSHOT.jar capture \
 | `connect.auto-reconnect` | `true` | survive PM5 drops mid-piece (exponential backoff) |
 | `firmware.profile` | `auto` | `auto` \| `current` \| `reference` \| `<profile id>` |
 | `storage.dir` | `sessions` | where session folders are written |
+
+### AI coach (optional)
+
+The technique analysis above is fully deterministic and needs no model. If — and only if — you
+configure an LLM under `ergpower.llm.*`, the analysis view gains an **"AI Coach"** panel that turns
+those numbers into grounded, plain-language coaching on demand. The coach consumes the *structured
+analysis* (scorecard, feature stats, drift trends, fault flags) plus a Kleshnev rubric — never the raw
+force curves — and is told to comment only on the provided numbers. With no provider set
+(`provider=none`, the default) the coach is disabled and nothing about the analysis changes.
+
+**Ollama-first for privacy:** point it at a local [Ollama](https://ollama.com) and nothing leaves the
+machine. Cloud providers (OpenAI-compatible or Anthropic) receive only the numeric analysis, and only
+when you opt in by configuring one. Put settings — especially any API key — in the **git-ignored**
+`./config/ergpower.local.properties` (auto-loaded via `spring.config.import`), not in the committed
+`application.properties`:
+
+```properties
+# ./config/ergpower.local.properties  (git-ignored)
+ergpower.llm.provider=ollama                      # none | ollama | openai | anthropic
+ergpower.llm.base-url=http://localhost:11434      # optional; a remote host or OpenAI-compatible runner
+ergpower.llm.model=llama3.1                        # optional; sensible per-provider default when unset
+# ergpower.llm.api-key=...                          # openai / anthropic only
+```
+
+| Property | Default | Purpose |
+|---|---|---|
+| `llm.provider` | `none` | `none` \| `ollama` \| `openai` \| `anthropic`; `none` disables the coach |
+| `llm.model` | per-provider | e.g. `llama3.1`, `gpt-4o-mini`, `claude-3-5-sonnet-latest` |
+| `llm.base-url` | per-provider | Ollama host or an OpenAI-compatible endpoint |
+| `llm.api-key` | – | credential for `openai`/`anthropic` (keep in the local file) |
+| `llm.timeout` | `60s` | per-request timeout |
 
 ## What a session looks like
 

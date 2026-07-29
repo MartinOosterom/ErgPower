@@ -151,6 +151,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/integrations/llm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether an LLM coach provider is configured (so the UI can show the panel). */
+        get: operations["getLlmStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/coach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * LLM coaching for a stored session (only when a provider is configured).
+         * @description Grounded natural-language technique coaching built from the session's deterministic analysis (features + scorecard + flags) and a Kleshnev rubric. Optional — 409 when no provider is configured. The model never sees raw curves.
+         */
+        get: operations["getSessionCoach"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards": {
         parameters: {
             query?: never;
@@ -394,6 +431,19 @@ export interface components {
             /** @description Strokes affected, where applicable. */
             count?: number | null;
         };
+        LlmStatus: {
+            /** @description True if an LLM coach provider is set up. */
+            configured: boolean;
+            /** @description e.g. ollama | openai | anthropic. */
+            provider?: string | null;
+            model?: string | null;
+        };
+        CoachResult: {
+            /** @description The model that produced the coaching. */
+            model: string;
+            /** @description Natural-language technique coaching. */
+            text: string;
+        };
         /** @description RFC 7807 problem details. */
         Problem: {
             type?: string;
@@ -636,6 +686,66 @@ export interface operations {
             };
             /** @description No such session. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLlmStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LLM coach status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmStatus"];
+                };
+            };
+        };
+    };
+    getSessionCoach: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coaching text and the model that produced it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachResult"];
+                };
+            };
+            /** @description No such session. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No LLM provider configured. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
