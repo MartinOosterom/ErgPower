@@ -1,16 +1,33 @@
 # ErgPower
 
-Capture **everything** a Concept2 PM5 emits during a rowing session over Bluetooth, and store it
-faithfully as JSON for later viewing and analysis — including the per-stroke **force/power curve**.
+**Capture everything a Concept2 PM5 emits over Bluetooth, store it faithfully, and turn it into
+insight — from raw per-stroke force curves to AI rowing coaching.**
 
-ErgPower connects to a PM5 (RowErg / SkiErg / BikeErg) over Bluetooth Low Energy, decodes every data
-stream the monitor broadcasts, and writes each piece to its own folder as one newline-delimited JSON
-file per characteristic — power, pace, stroke rate, heart rate, splits, calories, drive metrics, and
-the reassembled force curve — in **metric / SI units**.
+ErgPower connects to a PM5 (RowErg / SkiErg / BikeErg) over Bluetooth Low Energy, decodes every stream
+the monitor broadcasts, and records each session to disk as newline-delimited JSON in **metric / SI
+units** — power, pace, stroke rate, heart rate, splits, calories, drive metrics, and the reassembled
+per-stroke **force curve**. A single self-contained jar then serves a live browser dashboard and a
+REST/SSE API — with **no Python, no Node, and no package manager at runtime**.
 
-> Status: capture + storage are complete and validated on real hardware (live and replay); the
-> `/api/v1` live REST + SSE API and runtime source control (connect / replay) are in place, and a
-> React browser dashboard lives in [`web/`](web/). See [Roadmap](#roadmap).
+## Features
+
+- **Full-fidelity capture** — every PM5 characteristic decoded to typed events and stored per-stream,
+  plus the exact raw frames so any session can be re-decoded later.
+- **Per-stroke force curves** — the reassembled drive-force curve in Newtons, the data most tools drop.
+- **Live dashboard + API** — one process, one port: a configurable React dashboard at `/` and a
+  `/api/v1` REST + SSE stream, fed identically by a live PM5 or a replayed session.
+- **Technique analysis** — a deterministic, Kleshnev-grounded scorecard (catch gradient, peak position,
+  finish plateau…), a mean±band curve, drift trends, a per-stroke heatmap, and fault flags. No model needed.
+- **Optional AI coach** — plug in an LLM (local Ollama by default, or OpenAI / Anthropic) to turn that
+  analysis into grounded, plain-language coaching. Disabled unless you configure it.
+- **.FIT export** — download any session as a data-rich rowing activity for Strava / Garmin Connect /
+  Concept2 Logbook.
+- **Hardware-free replay** — replay stored sessions through the exact same pipeline, so you can develop,
+  demo, and test without a PM5.
+- **Self-contained** — the native BLE bridge (Rust) and the web UI are compiled into the jar; running it
+  needs only a JVM.
+- **Firmware-resilient decode** — wire-format differences between firmware revisions are isolated behind
+  pluggable firmware profiles, selected automatically per connection.
 
 ## How it works
 
