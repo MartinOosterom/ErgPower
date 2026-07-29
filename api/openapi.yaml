@@ -15,6 +15,7 @@ tags:
   - name: live
   - name: dashboards
   - name: export
+  - name: analysis
 
 paths:
   /connection:
@@ -148,6 +149,33 @@ paths:
           content:
             application/vnd.ant.fit:
               schema: { type: string, format: binary }
+        "404":
+          description: No such session.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /sessions/{id}/analysis:
+    get:
+      operationId: getSessionAnalysis
+      summary: Deterministic technique analysis of a stored session's force curves.
+      description: >
+        Per-stroke shape features (peak, peak position, catch gradient, finish plateau, hump index…),
+        a Kleshnev-grounded scorecard, a mean±band average curve, per-feature drift trends, the
+        resampled per-stroke curves (for a heatmap/overlay), and deterministic fault flags. Computed
+        locally, no model. `hasCurves=false` when the session has no force-curve data.
+      tags: [analysis]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The session's technique analysis.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionAnalysis" }
         "404":
           description: No such session.
           content:
@@ -416,6 +444,100 @@ components:
         name: { type: string }
         config: { $ref: "#/components/schemas/DashboardConfig" }
       required: [name, config]
+
+    SessionAnalysis:
+      type: object
+      description: Deterministic technique analysis of a session's force curves.
+      properties:
+        id: { type: string }
+        strokes: { type: integer, description: "Strokes analysed (with a force curve)." }
+        hasCurves: { type: boolean, description: "False if the session stored no force curves." }
+        bins: { type: integer, description: "Resample resolution: points per normalized drive." }
+        scorecard:
+          type: array
+          items: { $ref: "#/components/schemas/ScoreMetric" }
+        meanCurve:
+          type: array
+          description: "Average drive-force curve with a ±1σ band, over normalized drive position."
+          items: { $ref: "#/components/schemas/CurveBand" }
+        curves:
+          type: array
+          description: "Each stroke resampled to `bins` force values (N) — for the heatmap / overlay."
+          items:
+            type: array
+            items: { type: number }
+        features:
+          type: array
+          items: { $ref: "#/components/schemas/FeatureStat" }
+        trends:
+          type: array
+          items: { $ref: "#/components/schemas/FeatureTrend" }
+        flags:
+          type: array
+          items: { $ref: "#/components/schemas/TechniqueFlag" }
+      required: [id, strokes, hasCurves]
+
+    ScoreMetric:
+      type: object
+      description: One shape metric scored against a Kleshnev target window.
+      properties:
+        key: { type: string }
+        label: { type: string }
+        value: { type: number, nullable: true }
+        unit: { type: string }
+        targetMin: { type: number, nullable: true }
+        targetMax: { type: number, nullable: true }
+        pass: { type: boolean, nullable: true }
+        note: { type: string, nullable: true }
+      required: [key, label]
+
+    CurveBand:
+      type: object
+      properties:
+        x: { type: number, description: "Normalized drive position 0..1." }
+        mean: { type: number }
+        lower: { type: number }
+        upper: { type: number }
+      required: [x, mean, lower, upper]
+
+    FeatureStat:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        unit: { type: string }
+        avg: { type: number, nullable: true }
+        cv: { type: number, nullable: true, description: "Coefficient of variation (consistency)." }
+        min: { type: number, nullable: true }
+        max: { type: number, nullable: true }
+      required: [key, label]
+
+    FeatureTrend:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        unit: { type: string }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/TrendPoint" }
+      required: [key, label, points]
+
+    TrendPoint:
+      type: object
+      properties:
+        stroke: { type: integer }
+        value: { type: number }
+      required: [stroke, value]
+
+    TechniqueFlag:
+      type: object
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [info, warn] }
+        message: { type: string }
+        count: { type: integer, nullable: true, description: "Strokes affected, where applicable." }
+      required: [code, severity, message]
 
     Problem:
       type: object

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-29
+goal: A deterministic, self-contained force-curve / session technique analysis
+  (backend feature extraction in Java) surfaced as a dedicated analysis view —
+  Kleshnev-grounded scorecard, mean±band, feature trends, heatmap, and fault flags

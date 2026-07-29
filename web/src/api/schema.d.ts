@@ -131,6 +131,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deterministic technique analysis of a stored session's force curves.
+         * @description Per-stroke shape features (peak, peak position, catch gradient, finish plateau, hump index…), a Kleshnev-grounded scorecard, a mean±band average curve, per-feature drift trends, the resampled per-stroke curves (for a heatmap/overlay), and deterministic fault flags. Computed locally, no model. `hasCurves=false` when the session has no force-curve data.
+         */
+        get: operations["getSessionAnalysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards": {
         parameters: {
             query?: never;
@@ -309,6 +329,70 @@ export interface components {
         Dashboard: {
             name: string;
             config: components["schemas"]["DashboardConfig"];
+        };
+        /** @description Deterministic technique analysis of a session's force curves. */
+        SessionAnalysis: {
+            id: string;
+            /** @description Strokes analysed (with a force curve). */
+            strokes: number;
+            /** @description False if the session stored no force curves. */
+            hasCurves: boolean;
+            /** @description Resample resolution: points per normalized drive. */
+            bins?: number;
+            scorecard?: components["schemas"]["ScoreMetric"][];
+            /** @description Average drive-force curve with a ±1σ band, over normalized drive position. */
+            meanCurve?: components["schemas"]["CurveBand"][];
+            /** @description Each stroke resampled to `bins` force values (N) — for the heatmap / overlay. */
+            curves?: number[][];
+            features?: components["schemas"]["FeatureStat"][];
+            trends?: components["schemas"]["FeatureTrend"][];
+            flags?: components["schemas"]["TechniqueFlag"][];
+        };
+        /** @description One shape metric scored against a Kleshnev target window. */
+        ScoreMetric: {
+            key: string;
+            label: string;
+            value?: number | null;
+            unit?: string;
+            targetMin?: number | null;
+            targetMax?: number | null;
+            pass?: boolean | null;
+            note?: string | null;
+        };
+        CurveBand: {
+            /** @description Normalized drive position 0..1. */
+            x: number;
+            mean: number;
+            lower: number;
+            upper: number;
+        };
+        FeatureStat: {
+            key: string;
+            label: string;
+            unit?: string;
+            avg?: number | null;
+            /** @description Coefficient of variation (consistency). */
+            cv?: number | null;
+            min?: number | null;
+            max?: number | null;
+        };
+        FeatureTrend: {
+            key: string;
+            label: string;
+            unit?: string;
+            points: components["schemas"]["TrendPoint"][];
+        };
+        TrendPoint: {
+            stroke: number;
+            value: number;
+        };
+        TechniqueFlag: {
+            code: string;
+            /** @enum {string} */
+            severity: "info" | "warn";
+            message: string;
+            /** @description Strokes affected, where applicable. */
+            count?: number | null;
         };
         /** @description RFC 7807 problem details. */
         Problem: {
@@ -517,6 +601,37 @@ export interface operations {
                 };
                 content: {
                     "application/vnd.ant.fit": string;
+                };
+            };
+            /** @description No such session. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSessionAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session's technique analysis. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionAnalysis"];
                 };
             };
             /** @description No such session. */

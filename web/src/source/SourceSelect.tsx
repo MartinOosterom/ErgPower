@@ -9,7 +9,13 @@ import { fmtClock, fmtMeters } from '../format'
  * Entry screen (spec: "Source-selection entry"): connect to an erg or replay a stored session, both
  * feeding the same /live/stream. Consumes the add-source-control API (/sessions, /devices, /source).
  */
-export function SourceSelect({ onStarted }: { onStarted: () => void }) {
+export function SourceSelect({
+  onStarted,
+  onAnalyze,
+}: {
+  onStarted: () => void
+  onAnalyze: (id: string) => void
+}) {
   const [tab, setTab] = useState<'replay' | 'connect'>('replay')
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [devices, setDevices] = useState<DiscoveredDevice[]>([])
@@ -96,6 +102,9 @@ export function SourceSelect({ onStarted }: { onStarted: () => void }) {
                     </div>
                   </div>
                   <div className="list-actions">
+                    <button className="analyze-btn" onClick={() => onAnalyze(s.id)} title="Technique analysis">
+                      Analyze
+                    </button>
                     <a
                       className="dl-link"
                       href={`/api/v1/sessions/${encodeURIComponent(s.id)}/export.fit`}

@@ -134,6 +134,11 @@ curl -s -X DELETE http://localhost:8080/api/v1/source    # stop the active sourc
 # rowing extras (drag, per-stroke drive force/time) as FIT developer fields. Upload to Strava / Garmin
 # Connect / Concept2 Logbook. The viewer also shows a ".fit" link per session.
 curl -s -o session.fit  http://localhost:8080/api/v1/sessions/<id>/export.fit
+
+# Deterministic technique analysis of a session's force curves — Kleshnev-grounded scorecard (catch
+# gradient, peak position, finish plateau…), a mean±band curve, drift trends, a per-stroke heatmap, and
+# fault flags. No model needed. The viewer shows an "Analyze" button per session.
+curl -s  http://localhost:8080/api/v1/sessions/<id>/analysis
 ```
 
 For a live source, sessions **start and stop automatically** from the PM5 workout state — just row.
