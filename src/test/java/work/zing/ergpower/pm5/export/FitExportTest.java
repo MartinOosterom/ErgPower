@@ -86,6 +86,13 @@ class FitExportTest {
                     fields.add(new int[] {fn, fs});
                     size += fs;
                 }
+                if ((header & 0x20) != 0) { // developer fields section
+                    int nDev = fit[pos++] & 0xFF;
+                    for (int i = 0; i < nDev; i++) {
+                        size += fit[pos + 1] & 0xFF;
+                        pos += 3;
+                    }
+                }
                 localGlobalSize.put(local, new int[] {global, size});
                 localFields.put(local, fields);
             } else {
@@ -111,8 +118,12 @@ class FitExportTest {
 
         assertTrue(seen.contains(0), "file_id present");
         assertTrue(seen.contains(20), "record present");
+        assertTrue(seen.contains(19), "lap present");
         assertTrue(seen.contains(18), "session present");
         assertTrue(seen.contains(34), "activity present");
+        assertTrue(seen.contains(23), "device_info present");
+        assertTrue(seen.contains(206), "field_description present");
+        assertTrue(seen.contains(207), "developer_data_id present");
         assertTrue(records > 0, "at least one record");
         assertEquals(15, sport, "sport = rowing");
     }
