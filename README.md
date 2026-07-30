@@ -247,6 +247,28 @@ spring.ai.ollama.chat.options.model=llama3.1
 | `spring.ai.ollama.base-url` | `http://localhost:11434` | local or remote Ollama host |
 | `spring.ai.<cloud>.api-key` | – | credential for `openai`/`anthropic` (keep in the local file) |
 
+### AI agent (chat, optional)
+
+When a provider is configured, the analysis view also gains an **"Ask about this session"** chat. It's an
+interactive agent — the same Spring AI stack as the coach, but with **read-only tools** it calls on demand:
+a session's `overview` and technique `analysis`, a `metrics` window, the `strokes` in a window, a single
+stroke's `forceCurve`, plus cross-session `listSessions` / `compareSessions`. So it answers by time,
+interval, stroke, or *across* sessions ("how does my catch compare to my last 2k?") — pulling exactly the
+data a question needs rather than a fixed summary. Answers stream token-by-token.
+
+Grounding and trust: the agent is told to answer from the tools (not invent numbers) and to use any web
+content only as background. Tools are read-only and confined to the session store. The **conversation is
+held in the browser** and sent each turn — nothing is persisted server-side, so the live API stays
+read-only. As with the coach, a local Ollama keeps everything on your machine; a multi-turn chat may send
+more of a session to a cloud provider than the one-shot coach, so opt in accordingly.
+
+```sh
+# Ask the agent (SSE stream of token/done events); the last message is the new question.
+curl -N -X POST http://localhost:8080/api/v1/sessions/<id>/chat \
+  -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"How did my catch hold up in the second half?"}]}'
+```
+
 ## Cross-session analysis
 
 Each session's deterministic technique analysis is **computed once and cached** as `analysis.json` in the

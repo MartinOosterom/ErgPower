@@ -125,6 +125,7 @@ export function AnalysisScreen({ id, onBack }: { id: string; onBack: () => void 
       )}
 
       {llm?.configured && <CoachPanel id={id} llm={llm} />}
+      {llm?.configured && <ChatPanel id={id} />}
 
       <section className="analysis-charts">
         {meanOption && <div className="chart-box"><EChart option={meanOption} /></div>}
@@ -179,6 +180,95 @@ function CoachPanel({ id, llm }: { id: string; llm: LlmStatus }) {
       {err && <div className="coach-error">{err}</div>}
       {coaching && <p className="coach-text">{coaching.text}</p>}
       {!coaching && !err && <p className="coach-hint">Grounded in the metrics above — no raw curves leave your machine unless you configure a cloud provider. “Progress” compares this piece to your recent same-type sessions.</p>}
+    </section>
+  )
+}
+
+type ChatTurn = { role: 'user' | 'assistant'; content: string }
+
+/**
+ * Optional agent chat: multi-turn Q&A about the session (and, via the agent's tools, across sessions),
+ * grounded in the stored data and streamed token-by-token over SSE. Shown only when a provider is
+ * configured; the transcript is held here (client-side) and sent each turn — nothing is persisted.
+ */
+function ChatPanel({ id }: { id: string }) {
+  const [turns, setTurns] = useState<ChatTurn[]>([])
+  const [input, setInput] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const send = async () => {
+    const q = input.trim()
+    if (!q || busy) return
+    const history: ChatTurn[] = [...turns, { role: 'user', content: q }]
+    setTurns([...history, { role: 'assistant', content: '' }])
+    setInput('')
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/v1/sessions/${encodeURIComponent(id)}/chat`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: history }),
+      })
+      if (!res.ok || !res.body) throw new Error('chat failed')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      for (;;) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const blocks = buf.split('\n\n')
+        buf = blocks.pop() ?? ''
+        for (const block of blocks) {
+          let ev = ''
+          let data = ''
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event:')) ev = line.slice(6).trim()
+            else if (line.startsWith('data:')) data += line.slice(5) // no space-strip: preserve token spacing
+          }
+          if (ev === 'token' && data) {
+            setTurns((t) => {
+              const copy = [...t]
+              copy[copy.length - 1] = { role: 'assistant', content: copy[copy.length - 1].content + data }
+              return copy
+            })
+          }
+        }
+      }
+    } catch {
+      setTurns((t) => {
+        const copy = [...t]
+        copy[copy.length - 1] = { role: 'assistant', content: '(the agent is unavailable right now)' }
+        return copy
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="chat-panel">
+      <div className="chat-title">Ask about this session</div>
+      <div className="chat-log">
+        {turns.length === 0 && (
+          <p className="chat-hint">e.g. “how did my catch hold up in the second half?” or “compare this piece to my last 2k”.</p>
+        )}
+        {turns.map((t, i) => (
+          <div key={i} className={`chat-msg chat-${t.role}`}>
+            {t.content || (busy && i === turns.length - 1 ? 'Thinking…' : '')}
+          </div>
+        ))}
+      </div>
+      <div className="chat-input">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void send() }}
+          placeholder="Ask a question…"
+          disabled={busy}
+        />
+        <button className="coach-btn" onClick={() => void send()} disabled={busy || !input.trim()}>Send</button>
+      </div>
     </section>
   )
 }

@@ -178,7 +178,7 @@ public class CoachService {
     }
 
     /** Render the structured analysis as compact text — the only thing sent to the provider. */
-    static String renderAnalysis(SessionAnalysis a) {
+    public static String renderAnalysis(SessionAnalysis a) {
         StringBuilder sb = new StringBuilder();
         sb.append("Session ").append(a.getId()).append(": ")
                 .append(a.getStrokes()).append(" strokes analysed.\n");

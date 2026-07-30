@@ -509,6 +509,16 @@ export interface components {
             /** @description Natural-language technique coaching. */
             text: string;
         };
+        /** @description One turn in the agent conversation (the transcript is held client-side). */
+        ChatMessage: {
+            /** @enum {string} */
+            role: "user" | "assistant";
+            content: string;
+        };
+        /** @description The client-held transcript; the last message is the new user question. */
+        ChatRequest: {
+            messages: components["schemas"]["ChatMessage"][];
+        };
         /** @description RFC 7807 problem details. */
         Problem: {
             type?: string;

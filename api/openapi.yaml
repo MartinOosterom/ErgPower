@@ -681,6 +681,23 @@ components:
         text: { type: string, description: "Natural-language technique coaching." }
       required: [model, text]
 
+    ChatMessage:
+      type: object
+      description: One turn in the agent conversation (the transcript is held client-side).
+      properties:
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string }
+      required: [role, content]
+
+    ChatRequest:
+      type: object
+      description: The client-held transcript; the last message is the new user question.
+      properties:
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/ChatMessage" }
+      required: [messages]
+
     Problem:
       type: object
       description: RFC 7807 problem details.

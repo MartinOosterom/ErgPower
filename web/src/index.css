@@ -329,6 +329,56 @@ input {
   color: var(--bad);
   font-size: 0.9em;
 }
+.chat-panel {
+  margin: 0 16px 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.chat-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.chat-msg {
+  line-height: 1.45;
+  white-space: pre-wrap;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.chat-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  max-width: 80%;
+}
+.chat-assistant {
+  align-self: flex-start;
+  background: var(--panel-2);
+  max-width: 90%;
+}
+.chat-hint {
+  color: var(--muted);
+  font-size: 0.85em;
+  margin: 0;
+}
+.chat-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.chat-input input {
+  flex: 1;
+  min-width: 0;
+}
 .list-sub {
   color: var(--muted);
   font-size: 0.85em;
