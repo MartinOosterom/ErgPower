@@ -30,11 +30,18 @@ public class SessionAgent {
     static final String SYSTEM = """
             You are a rowing analyst assistant answering questions about the athlete's erg data. You have
             read-only TOOLS to fetch exactly what a question needs: a session's overview and force-curve
-            technique analysis, a metrics window, the strokes in a window, a single stroke's force curve,
-            and cross-session listing/compare. ALWAYS answer from the tools — call them rather than guess,
-            and do not invent numbers you did not retrieve. If you are inferring beyond the data, say so.
-            Prefer the session currently being viewed; use the cross-session tools only when the question
-            is comparative or historical. Be concise and concrete, and refer to the athlete's own numbers.""";
+            technique analysis, a metrics window, the strokes in a window, and a single stroke's force
+            curve. ALWAYS answer from the tools — call them rather than guess, and do not invent numbers
+            you did not retrieve. If you are inferring beyond the data, say so. Be concise and concrete,
+            and refer to the athlete's own numbers.""";
+
+    static final String SET_SYSTEM = """
+            You are a rowing analyst assistant answering questions ACROSS a set of the athlete's sessions.
+            You have read-only TOOLS: per-session overview/analysis/metrics/strokes/forceCurve, plus
+            cross-session listing and comparison. ALWAYS answer from the tools — call them rather than
+            guess, and do not invent numbers you did not retrieve. Focus on the SELECTED sessions listed
+            below; use compareSessions across them for comparative or progress questions. Be concise and
+            concrete, and refer to the athlete's own numbers.""";
 
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final SessionTools sessionTools;
@@ -53,14 +60,42 @@ public class SessionAgent {
     }
 
     /**
-     * Stream an answer for the conversation, anchored to {@code anchorId}. The transcript's last message
-     * is the new user question. Returns an empty stream if no provider is configured.
+     * Stream an answer about a SINGLE session (the analysis view). The agent gets only the session tools,
+     * so it cannot reach other sessions. Empty stream when no provider is configured.
      */
     public Flux<String> chat(String anchorId, List<ChatMessage> transcript) {
         ChatModel model = chatModelProvider.getIfAvailable();
         if (model == null) {
             return Flux.empty();
         }
+        String system = SYSTEM + "\n\nThe session being viewed is '" + anchorId + "'. Answer about it.";
+        return ChatClient.create(model).prompt()
+                .system(system)
+                .messages(toMessages(transcript))
+                .tools(sessionTools)
+                .stream()
+                .content();
+    }
+
+    /**
+     * Stream an answer scoped to a SELECTED SET of sessions (the progress dashboard). The agent gets the
+     * cross-session tools too, focused on the named set. Empty stream when no provider is configured.
+     */
+    public Flux<String> chatOverSet(List<String> sessionIds, List<ChatMessage> transcript) {
+        ChatModel model = chatModelProvider.getIfAvailable();
+        if (model == null) {
+            return Flux.empty();
+        }
+        String system = SET_SYSTEM + "\n\nThe selected sessions are: " + String.join(", ", sessionIds) + ".";
+        return ChatClient.create(model).prompt()
+                .system(system)
+                .messages(toMessages(transcript))
+                .tools(sessionTools, crossSessionTools)
+                .stream()
+                .content();
+    }
+
+    private static List<Message> toMessages(List<ChatMessage> transcript) {
         List<Message> messages = new ArrayList<>();
         for (ChatMessage m : transcript) {
             if (m.getRole() == ChatMessage.RoleEnum.ASSISTANT) {
@@ -69,12 +104,6 @@ public class SessionAgent {
                 messages.add(new UserMessage(m.getContent()));
             }
         }
-        String system = SYSTEM + "\n\nThe session currently being viewed is '" + anchorId + "'.";
-        return ChatClient.create(model).prompt()
-                .system(system)
-                .messages(messages)
-                .tools(sessionTools, crossSessionTools)
-                .stream()
-                .content();
+        return messages;
     }
 }

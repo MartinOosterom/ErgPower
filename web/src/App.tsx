@@ -5,6 +5,7 @@ import { useLiveStore } from './store/liveStore'
 import type { SourceStatus } from './api/types'
 import { AnalysisScreen } from './analysis/AnalysisScreen'
 import { DashboardScreen } from './dashboard/DashboardScreen'
+import { ProgressScreen } from './progress/ProgressScreen'
 import { SourceSelect } from './source/SourceSelect'
 
 /**
@@ -16,6 +17,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [forceSelect, setForceSelect] = useState(false)
   const [analyze, setAnalyze] = useState<string | null>(null)
+  const [progress, setProgress] = useState(false)
 
   useEffect(() => {
     useLiveStore.getState().start() // one SSE connection for the app's lifetime
@@ -30,6 +32,11 @@ export default function App() {
 
   if (loading) return <div className="loading">Connecting…</div>
 
+  // Progress dashboard: cross-session, a sibling of the single-session flow.
+  if (progress) {
+    return <ProgressScreen onBack={() => setProgress(false)} />
+  }
+
   if (analyze) {
     return <AnalysisScreen id={analyze} onBack={() => setAnalyze(null)} />
   }
@@ -43,6 +50,7 @@ export default function App() {
           setForceSelect(false)
         }}
         onAnalyze={setAnalyze}
+        onProgress={() => setProgress(true)}
       />
     )
   }

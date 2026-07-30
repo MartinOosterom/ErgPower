@@ -12,9 +12,11 @@ import { fmtClock, fmtMeters } from '../format'
 export function SourceSelect({
   onStarted,
   onAnalyze,
+  onProgress,
 }: {
   onStarted: () => void
   onAnalyze: (id: string) => void
+  onProgress: () => void
 }) {
   const [tab, setTab] = useState<'replay' | 'connect'>('replay')
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -59,6 +61,7 @@ export function SourceSelect({
       <div className="select-card">
         <h1>ErgPower</h1>
         <p className="select-sub">Pick a source — both feed the same live dashboard.</p>
+        <button className="progress-link" onClick={onProgress}>View progress across sessions →</button>
 
         <div className="tabs">
           <button className={tab === 'replay' ? 'active' : ''} onClick={() => setTab('replay')}>

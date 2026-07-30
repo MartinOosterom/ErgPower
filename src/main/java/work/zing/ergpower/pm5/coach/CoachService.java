@@ -164,6 +164,36 @@ public class CoachService {
         }
     }
 
+    /**
+     * Progress coaching over an explicitly selected set of sessions (the progress dashboard). The most
+     * recent selected session is the "current" piece; the rest form the baseline. Falls back to
+     * single-session coaching of the anchor when fewer than two of the selected sessions have scores.
+     *
+     * @throws CoachUnavailableException if no provider is configured
+     * @throws NoSuchElementException    if the selection is empty or the anchor session is unknown
+     * @throws IOException               if a session's stored data cannot be read
+     */
+    public CoachResult coachOverSet(List<String> sessionIds) throws IOException {
+        ChatModel model = chatModel.get();
+        if (model == null) {
+            throw new CoachUnavailableException("no LLM provider configured (set spring.ai.model.chat)");
+        }
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            throw new NoSuchElementException("no sessions selected");
+        }
+        String anchor = history.anchorOf(sessionIds);
+        SessionAnalysis analysis = analyzer.analyze(anchor);
+        String hist = history.blockForSet(sessionIds);
+        String user = renderAnalysis(analysis) + context.render(anchor) + hist;
+        String system = hist.isEmpty() ? SYSTEM_PROMPT : SYSTEM_PROMPT + PROGRESS_SUFFIX;
+        try {
+            String text = ChatClient.create(model).prompt().system(system).user(user).call().content();
+            return new CoachResult().model(modelName(model)).text(text);
+        } catch (RuntimeException e) {
+            throw new UncheckedIOException("LLM provider call failed: " + e.getMessage(), new IOException(e));
+        }
+    }
+
     /** The model id from a {@link ChatModel}'s default options, or {@code "unknown"}. */
     static String modelName(ChatModel model) {
         try {

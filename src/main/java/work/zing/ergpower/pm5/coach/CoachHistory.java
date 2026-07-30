@@ -61,24 +61,55 @@ public class CoachHistory {
         if (comparable.size() < MIN_COMPARABLE) {
             return "";
         }
-        Collections.reverse(comparable); // oldest → newest
-
         String kind = anchor.getTargetType() == TargetTypeEnum.DISTANCE ? "distance" : "time";
-        StringBuilder sb = new StringBuilder("\nRecent same-type history — ")
-                .append(comparable.size()).append(" comparable ").append(kind)
-                .append(" pieces (oldest → newest, the last is this session):\n");
+        return renderBlock(comparable, "Recent same-type history — " + comparable.size()
+                + " comparable " + kind + " pieces");
+    }
+
+    /**
+     * A history block over an EXPLICITLY selected set of sessions (the progress dashboard). Returns "" if
+     * fewer than two of the selected sessions have technique scores.
+     */
+    public String blockForSet(List<String> sessionIds) throws IOException {
+        java.util.Set<String> want = new java.util.LinkedHashSet<>(sessionIds);
+        List<SessionIndexEntry> selected = index.list(null, null, null, null, null).stream()
+                .filter(e -> want.contains(e.getId()))
+                .filter(e -> e.getScores() != null && !e.getScores().isEmpty())
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (selected.size() < 2) {
+            return "";
+        }
+        return renderBlock(selected, "Selected sessions — " + selected.size() + " pieces");
+    }
+
+    /** The most recent of the selected sessions (the "current" piece), or the first id if none are indexed. */
+    public String anchorOf(List<String> sessionIds) throws IOException {
+        java.util.Set<String> want = new java.util.LinkedHashSet<>(sessionIds);
+        for (SessionIndexEntry e : index.list(null, null, null, null, null)) { // newest first
+            if (want.contains(e.getId())) {
+                return e.getId();
+            }
+        }
+        return sessionIds.isEmpty() ? null : sessionIds.get(0);
+    }
+
+    /** Render a metric trend (oldest → newest) plus a power line over the given entries. */
+    private static String renderBlock(List<SessionIndexEntry> entries, String header) {
+        List<SessionIndexEntry> ordered = new ArrayList<>(entries);
+        Collections.reverse(ordered); // index is newest-first; a trend reads oldest → newest
+        StringBuilder sb = new StringBuilder("\n").append(header)
+                .append(" (oldest → newest, the last is the most recent):\n");
         for (String[] m : METRICS) {
             String key = m[0], label = m[1], unit = m[2];
             List<String> values = new ArrayList<>();
-            for (SessionIndexEntry e : comparable) {
+            for (SessionIndexEntry e : ordered) {
                 BigDecimal v = e.getScores().get(key);
                 values.add(v != null ? trim(v) + unit : "?");
             }
             sb.append("- ").append(label).append(": ").append(String.join(" → ", values)).append("\n");
         }
-        // Performance context (within this same type only).
         List<String> powers = new ArrayList<>();
-        for (SessionIndexEntry e : comparable) {
+        for (SessionIndexEntry e : ordered) {
             powers.add(e.getAvgPowerW() != null ? e.getAvgPowerW() + " W" : "?");
         }
         sb.append("- average power: ").append(String.join(" → ", powers)).append("\n");

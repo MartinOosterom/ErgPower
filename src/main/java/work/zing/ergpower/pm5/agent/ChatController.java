@@ -15,6 +15,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
 import work.zing.ergpower.api.model.ChatRequest;
+import work.zing.ergpower.api.model.SetChatRequest;
 
 /**
  * The session agent's chat endpoint (change {@code session-agent}). Hand-written for SSE streaming:
@@ -40,6 +41,21 @@ public class ChatController {
         List<work.zing.ergpower.api.model.ChatMessage> messages =
                 body.getMessages() != null ? body.getMessages() : List.of();
         return agent.chat(id, messages)
+                .map(token -> ServerSentEvent.builder(token).event("token").build())
+                .concatWith(Flux.just(ServerSentEvent.<String>builder("").event("done").build()))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /** Set-scoped chat for the progress dashboard: the agent roams the selected sessions via its tools. */
+    @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> chatOverSet(@RequestBody SetChatRequest body) {
+        if (!agent.available()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "no LLM provider configured");
+        }
+        List<String> sessions = body.getSessions() != null ? body.getSessions() : List.of();
+        List<work.zing.ergpower.api.model.ChatMessage> messages =
+                body.getMessages() != null ? body.getMessages() : List.of();
+        return agent.chatOverSet(sessions, messages)
                 .map(token -> ServerSentEvent.builder(token).event("token").build())
                 .concatWith(Flux.just(ServerSentEvent.<String>builder("").event("done").build()))
                 .subscribeOn(Schedulers.boundedElastic());

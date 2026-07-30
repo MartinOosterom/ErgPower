@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-30
+goal: A dedicated Progress dashboard for looking across sessions — pick a set of
+  sessions, see trends, and get progress coaching and a set-scoped agent — while
+  the per-session Analysis view stays focused on one session.

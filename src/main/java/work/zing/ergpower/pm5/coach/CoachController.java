@@ -15,6 +15,7 @@ import reactor.core.scheduler.Schedulers;
 import work.zing.ergpower.api.CoachApi;
 import work.zing.ergpower.api.model.CoachResult;
 import work.zing.ergpower.api.model.LlmStatus;
+import work.zing.ergpower.api.model.ProgressRequest;
 
 /**
  * Implements the generated {@link CoachApi}: the optional LLM coach on top of the deterministic
@@ -58,5 +59,21 @@ public class CoachController implements CoachApi {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "LLM provider error: " + e.getMessage());
             }
         }).subscribeOn(Schedulers.boundedElastic()).map(ResponseEntity::ok);
+    }
+
+    @Override
+    public Mono<ResponseEntity<CoachResult>> coachProgress(Mono<ProgressRequest> progressRequest,
+            ServerWebExchange exchange) {
+        return progressRequest.flatMap(req -> Mono.fromCallable(() -> {
+            try {
+                return coachService.coachOverSet(req.getSessions());
+            } catch (CoachUnavailableException e) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+            } catch (NoSuchElementException e) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+            } catch (UncheckedIOException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "LLM provider error: " + e.getMessage());
+            }
+        }).subscribeOn(Schedulers.boundedElastic())).map(ResponseEntity::ok);
     }
 }

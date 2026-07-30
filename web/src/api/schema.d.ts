@@ -205,6 +205,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coach/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Progress coaching over an explicitly selected set of sessions (only when configured).
+         * @description Grounded progress coaching across the chosen sessions — the most recent is the current piece and the rest form the baseline. Optional — 409 when no provider is configured.
+         */
+        post: operations["coachProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions/{id}/coach": {
         parameters: {
             query?: never;
@@ -517,6 +537,15 @@ export interface components {
         };
         /** @description The client-held transcript; the last message is the new user question. */
         ChatRequest: {
+            messages: components["schemas"]["ChatMessage"][];
+        };
+        /** @description A selected set of sessions to coach progress over (most recent = current piece). */
+        ProgressRequest: {
+            sessions: string[];
+        };
+        /** @description A set-scoped agent conversation — the selected sessions plus the client-held transcript. */
+        SetChatRequest: {
+            sessions: string[];
             messages: components["schemas"]["ChatMessage"][];
         };
         /** @description RFC 7807 problem details. */
@@ -845,6 +874,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmStatus"];
+                };
+            };
+        };
+    };
+    coachProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProgressRequest"];
+            };
+        };
+        responses: {
+            /** @description Progress coaching text and the model that produced it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachResult"];
+                };
+            };
+            /** @description A selected session was not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No LLM provider configured. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

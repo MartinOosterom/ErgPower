@@ -286,6 +286,12 @@ Comparison uses **two lenses**, because the log is heterogeneous (varied distanc
 - **Performance metrics** (power, pace) are only comparable *within a workout type*, so scope them with
   the filters (`targetType`, `distanceMin/Max`, `from`/`to`).
 
+The viewer splits the two mental modes into two screens. The per-session **Analysis** view stays focused
+on one piece (coach and agent scoped to that session). A separate **Progress dashboard** (reached from
+"View progress across sessions") lets you **pick a set of sessions**, see technique trends across them,
+and get **progress coaching over the chosen set** (`POST /coach/progress`) plus a **set-scoped agent**
+(`POST /chat`) — "which of these had my best finish?", "am I improving my catch?".
+
 ## What a session looks like
 
 ```

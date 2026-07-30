@@ -242,6 +242,36 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LlmStatus" }
 
+  /coach/progress:
+    post:
+      operationId: coachProgress
+      summary: Progress coaching over an explicitly selected set of sessions (only when configured).
+      description: >
+        Grounded progress coaching across the chosen sessions — the most recent is the current piece and
+        the rest form the baseline. Optional — 409 when no provider is configured.
+      tags: [coach]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProgressRequest" }
+      responses:
+        "200":
+          description: Progress coaching text and the model that produced it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachResult" }
+        "404":
+          description: A selected session was not found.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "409":
+          description: No LLM provider configured.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
   /sessions/{id}/coach:
     get:
       operationId: getSessionCoach
@@ -697,6 +727,27 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ChatMessage" }
       required: [messages]
+
+    ProgressRequest:
+      type: object
+      description: A selected set of sessions to coach progress over (most recent = current piece).
+      properties:
+        sessions:
+          type: array
+          items: { type: string }
+      required: [sessions]
+
+    SetChatRequest:
+      type: object
+      description: A set-scoped agent conversation — the selected sessions plus the client-held transcript.
+      properties:
+        sessions:
+          type: array
+          items: { type: string }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/ChatMessage" }
+      required: [sessions, messages]
 
     Problem:
       type: object

@@ -61,4 +61,18 @@ class CoachHistoryTest {
         storeFixture("only-one");
         assertEquals("", history().block("only-one"), "one session → no trend, fall back to single-session");
     }
+
+    @Test
+    void blockForSetOverExplicitSelection() throws Exception {
+        assumeTrue(Files.exists(FIXTURE), "fixture missing");
+        storeFixture("sel-a");
+        storeFixture("sel-b");
+        storeFixture("sel-c");
+        storeFixture("not-selected");
+
+        String block = history().blockForSet(java.util.List.of("sel-a", "sel-b", "sel-c"));
+        assertTrue(block.contains("Selected sessions — 3 pieces"), "renders the chosen set");
+        assertTrue(block.contains("catch gradient:") && block.contains("→"), "trend over the set");
+        assertEquals("", history().blockForSet(java.util.List.of("sel-a")), "fewer than 2 → empty");
+    }
 }
