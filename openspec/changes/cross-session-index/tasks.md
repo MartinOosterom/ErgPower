@@ -1,8 +1,8 @@
 ## 1. Per-session analysis cache
 
-- [ ] 1.1 Persist the `TechniqueAnalyzer` output as a compact `analysis.json` in the session folder,
+- [x] 1.1 Persist the `TechniqueAnalyzer` output as a compact `analysis.json` in the session folder,
       stamped with an analyzer version; write it lazily on first access and at capture close
-- [ ] 1.2 On read, re-compute when the stamp is missing/stale; expose a "get cached analysis for id"
+- [x] 1.2 On read, re-compute when the stamp is missing/stale; expose a "get cached analysis for id"
       accessor the coach/agent can reuse
 
 ## 2. Aggregate index

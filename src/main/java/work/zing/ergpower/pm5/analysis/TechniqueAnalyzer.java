@@ -34,6 +34,12 @@ import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 @Component
 public class TechniqueAnalyzer {
 
+    /**
+     * Analysis logic version — bump whenever the feature/score math changes so cached results
+     * ({@code analysis.json}, see {@code SessionAnalysisCache}) are invalidated and recomputed.
+     */
+    public static final int ANALYZER_VERSION = 1;
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int BINS = 50; // resample resolution along the normalized drive
 
