@@ -75,23 +75,34 @@ public class CoachService {
             4. Mention any drift/fatigue trend only if the numbers show one, using the context to explain why.
             Refer to the athlete's own numbers. Do not output JSON, tables, or bullet lists.""";
 
+    /** Appended to the system prompt in progress mode, when a same-type history is available. */
+    static final String PROGRESS_SUFFIX = """
+
+
+            The athlete's recent SAME-TYPE history is included below the current session (each metric's
+            values oldest → newest, the last being this session). Additionally narrate PROGRESS: what has
+            improved, plateaued, or regressed versus their own recent baseline — technique-first, and only
+            from the provided numbers. Do not compare across different workout types.""";
+
     private final TechniqueAnalyzer analyzer;
     private final CoachContext context;
+    private final CoachHistory history;
     private final Supplier<ChatModel> chatModel;
     private final Environment env;
 
     /** Production wiring: the {@link ChatModel} is an optional bean (present only when a provider is set). */
     @Autowired
-    public CoachService(TechniqueAnalyzer analyzer, CoachContext context,
+    public CoachService(TechniqueAnalyzer analyzer, CoachContext context, CoachHistory history,
             ObjectProvider<ChatModel> chatModelProvider, Environment env) {
-        this(analyzer, context, chatModelProvider::getIfAvailable, env);
+        this(analyzer, context, history, chatModelProvider::getIfAvailable, env);
     }
 
     /** Testable seam: supply the model (or {@code () -> null} for "not configured") directly. */
-    CoachService(TechniqueAnalyzer analyzer, CoachContext context,
+    CoachService(TechniqueAnalyzer analyzer, CoachContext context, CoachHistory history,
             Supplier<ChatModel> chatModel, Environment env) {
         this.analyzer = analyzer;
         this.context = context;
+        this.history = history;
         this.chatModel = chatModel;
         this.env = env;
     }
@@ -121,14 +132,31 @@ public class CoachService {
      * @throws IOException               if the session's stored data cannot be read (→ 500)
      */
     public CoachResult coach(String id) throws IOException {
+        return coach(id, false);
+    }
+
+    /**
+     * Produce coaching for a stored session. In {@code progress} mode it also grounds the athlete's
+     * recent same-type history from the cross-session index; with no comparable history it falls back to
+     * single-session coaching. Throws as {@link #coach(String)}.
+     */
+    public CoachResult coach(String id, boolean progress) throws IOException {
         ChatModel model = chatModel.get();
         if (model == null) {
             throw new CoachUnavailableException("no LLM provider configured (set spring.ai.model.chat)");
         }
         SessionAnalysis analysis = analyzer.analyze(id); // throws NoSuchElementException for unknown id
         String user = renderAnalysis(analysis) + context.render(id);
+        String system = SYSTEM_PROMPT;
+        if (progress) {
+            String hist = history.block(id);
+            if (!hist.isEmpty()) { // only switch to progress narration when there is comparable history
+                user += hist;
+                system += PROGRESS_SUFFIX;
+            }
+        }
         try {
-            String text = ChatClient.create(model).prompt().system(SYSTEM_PROMPT).user(user).call().content();
+            String text = ChatClient.create(model).prompt().system(system).user(user).call().content();
             return new CoachResult().model(modelName(model)).text(text);
         } catch (RuntimeException e) {
             // Surface the provider's own message (e.g. an Ollama 402 balance hint) in the 502 detail.

@@ -147,27 +147,38 @@ function CoachPanel({ id, llm }: { id: string; llm: LlmStatus }) {
   const [coaching, setCoaching] = useState<CoachResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [mode, setMode] = useState<'single' | 'progress'>('single')
 
-  const generate = async () => {
+  const generate = async (m: 'single' | 'progress') => {
     setBusy(true)
     setErr(null)
-    const { data, error } = await api.GET('/sessions/{id}/coach', { params: { path: { id } } })
+    const { data, error } = await api.GET('/sessions/{id}/coach', { params: { path: { id }, query: { mode: m } } })
     if (error || !data) setErr('Coaching is unavailable right now.')
     else setCoaching(data)
     setBusy(false)
+  }
+
+  const pick = (m: 'single' | 'progress') => {
+    setMode(m)
+    void generate(m)
   }
 
   return (
     <section className="coach-panel">
       <div className="coach-head">
         <div className="coach-title">AI Coach <span className="coach-provider">{llm.provider}{llm.model ? ` · ${llm.model}` : ''}</span></div>
-        <button className="coach-btn" onClick={() => void generate()} disabled={busy}>
-          {busy ? 'Coaching…' : coaching ? 'Regenerate' : 'Generate coaching'}
-        </button>
+        <div className="coach-modes">
+          {/* Progress grounds the athlete's recent same-type sessions; it falls back to single when there's no history. */}
+          <button className={`mode-btn${mode === 'single' ? ' mode-on' : ''}`} onClick={() => pick('single')} disabled={busy}>This session</button>
+          <button className={`mode-btn${mode === 'progress' ? ' mode-on' : ''}`} onClick={() => pick('progress')} disabled={busy}>Progress</button>
+          <button className="coach-btn" onClick={() => void generate(mode)} disabled={busy}>
+            {busy ? 'Coaching…' : coaching ? 'Regenerate' : 'Generate'}
+          </button>
+        </div>
       </div>
       {err && <div className="coach-error">{err}</div>}
       {coaching && <p className="coach-text">{coaching.text}</p>}
-      {!coaching && !err && <p className="coach-hint">Grounded in the metrics above — no raw curves leave your machine unless you configure a cloud provider.</p>}
+      {!coaching && !err && <p className="coach-hint">Grounded in the metrics above — no raw curves leave your machine unless you configure a cloud provider. “Progress” compares this piece to your recent same-type sessions.</p>}
     </section>
   )
 }

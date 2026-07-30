@@ -19,6 +19,8 @@ import org.springframework.core.env.StandardEnvironment;
 import reactor.core.publisher.Flux;
 
 import work.zing.ergpower.api.model.SessionAnalysis;
+import work.zing.ergpower.pm5.analysis.SessionAnalysisCache;
+import work.zing.ergpower.pm5.analysis.SessionIndex;
 import work.zing.ergpower.pm5.analysis.TechniqueAnalyzer;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 import work.zing.ergpower.pm5.source.ReplayPm5Source;
@@ -38,21 +40,29 @@ class CoachServiceTest {
     @TempDir
     Path storage;
 
+    private ErgPowerBleProperties ble() {
+        return new ErgPowerBleProperties(
+                null, null, null, null, new ErgPowerBleProperties.Storage(storage.toString()), null);
+    }
+
     /** Analyzer pointed at the temp storage dir (only the storage path is exercised here). */
     private TechniqueAnalyzer analyzer() {
-        ErgPowerBleProperties ble = new ErgPowerBleProperties(
-                null, null, null, null, new ErgPowerBleProperties.Storage(storage.toString()), null);
-        return new TechniqueAnalyzer(ble);
+        return new TechniqueAnalyzer(ble());
+    }
+
+    /** History over the temp storage (unused by the single-session paths these tests exercise). */
+    private CoachHistory history() {
+        return new CoachHistory(new SessionIndex(ble(), new SessionAnalysisCache(ble(), analyzer())));
     }
 
     /** A coach with no model — "not configured". */
     private CoachService disabledCoach() {
-        return new CoachService(analyzer(), new CoachContext(storage), () -> null, new StandardEnvironment());
+        return new CoachService(analyzer(), new CoachContext(storage), history(), () -> null, new StandardEnvironment());
     }
 
     /** A coach whose model call blows up — the provider-error (502) path. */
     private CoachService coachWith(ChatModel model) {
-        return new CoachService(analyzer(), new CoachContext(storage), () -> model, new StandardEnvironment());
+        return new CoachService(analyzer(), new CoachContext(storage), history(), () -> model, new StandardEnvironment());
     }
 
     @Test

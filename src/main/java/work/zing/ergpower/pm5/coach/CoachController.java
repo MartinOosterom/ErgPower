@@ -45,10 +45,11 @@ public class CoachController implements CoachApi {
     }
 
     @Override
-    public Mono<ResponseEntity<CoachResult>> getSessionCoach(String id, ServerWebExchange exchange) {
+    public Mono<ResponseEntity<CoachResult>> getSessionCoach(String id, String mode, ServerWebExchange exchange) {
+        boolean progress = "progress".equalsIgnoreCase(mode);
         return Mono.fromCallable(() -> {
             try {
-                return coachService.coach(id);
+                return coachService.coach(id, progress);
             } catch (CoachUnavailableException e) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
             } catch (NoSuchElementException e) {

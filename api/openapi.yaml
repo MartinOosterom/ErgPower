@@ -256,6 +256,14 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - name: mode
+          in: query
+          required: false
+          description: >
+            single (default) coaches this session alone; progress also grounds the athlete's recent
+            same-type history from the cross-session index and narrates improvement over time (falling
+            back to single when there is no comparable history).
+          schema: { type: string, enum: [single, progress], default: single }
       responses:
         "200":
           description: Coaching text and the model that produced it.

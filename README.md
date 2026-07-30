@@ -213,6 +213,12 @@ using the context only to explain *why* the curve behaved as it did (pacing, fat
 With no provider set (`provider=none`, the default) the coach is disabled and nothing about the analysis
 changes.
 
+The panel has a **This session / Progress** toggle. *Progress* (`?mode=progress`) additionally grounds
+your recent **same-type** sessions from the cross-session index — the most recent comparable pieces of
+the same workout type within a distance/time band — and narrates what has improved, plateaued, or
+regressed versus your own baseline. It needs a few comparable sessions; with too little history it falls
+back to single-session coaching.
+
 The AI layer runs on **[Spring AI](https://docs.spring.io/spring-ai/reference/) 2.0** (on Spring Boot
 4.1); providers are selected with `spring.ai.*`. No chat model is active by default (`spring.ai.model.chat=none`),
 so the coach is off until you configure one.

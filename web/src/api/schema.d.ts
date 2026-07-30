@@ -75,6 +75,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cross-session index — stored sessions with their technique scores, filterable. */
+        get: operations["getSessionIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A metric over time across sessions.
+         * @description Technique-shape metrics (catchGradient, peakPosition, finishPlateau, meanMaxRatio) are comparable across any pieces and may span the whole log. Performance metrics (avgPowerW, peakPowerW, distanceM, durationS) are only comparable within a workout type — scope them with the filters (e.g. targetType + a distance band) so incomparable pieces are not mixed.
+         */
+        get: operations["getTrend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/source": {
         parameters: {
             query?: never;
@@ -335,6 +372,34 @@ export interface components {
             /** @description Has raw frames, so it can be replayed. */
             replayable: boolean;
         };
+        /** @description One session's summary plus its cached technique scores, for cross-session comparison. */
+        SessionIndexEntry: {
+            id: string;
+            startedAt?: string | null;
+            /**
+             * @description Workout duration type.
+             * @enum {string}
+             */
+            targetType: "time" | "distance" | "none";
+            /** @description Target seconds (time) or metres (distance). */
+            targetValue?: number | null;
+            distanceM?: number | null;
+            durationS?: number | null;
+            avgPowerW?: number | null;
+            peakPowerW?: number | null;
+            /** @description Whether force curves were recorded (so scores exist). */
+            hasCurves: boolean;
+            /** @description Technique score key → value (catchGradient, peakPosition, finishPlateau, meanMaxRatio). */
+            scores?: {
+                [key: string]: number;
+            };
+            replayable: boolean;
+        };
+        SessionTrendPoint: {
+            sessionId: string;
+            startedAt?: string | null;
+            value: number;
+        };
         /** @enum {string} */
         SourceType: "NONE" | "BLE" | "REPLAY";
         /** @description Select a source. type=ble connects to a PM5 (optional device name); type=replay plays a stored session (sessionId, optional speed multiplier, default 1.0 = real time). */
@@ -540,6 +605,65 @@ export interface operations {
             };
         };
     };
+    getSessionIndex: {
+        parameters: {
+            query?: {
+                /** @description Only workouts with this target type. */
+                targetType?: "time" | "distance";
+                /** @description Minimum distance (m). */
+                distanceMin?: number;
+                /** @description Maximum distance (m). */
+                distanceMax?: number;
+                /** @description Inclusive lower bound on startedAt (ISO-8601). */
+                from?: string;
+                /** @description Inclusive upper bound on startedAt (ISO-8601). */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching sessions (newest first) with technique scores. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionIndexEntry"][];
+                };
+            };
+        };
+    };
+    getTrend: {
+        parameters: {
+            query: {
+                /** @description catchGradient | peakPosition | finishPlateau | meanMaxRatio | avgPowerW | peakPowerW | distanceM | durationS */
+                metric: string;
+                targetType?: "time" | "distance";
+                distanceMin?: number;
+                distanceMax?: number;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trend points, oldest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionTrendPoint"][];
+                };
+            };
+        };
+    };
     getSource: {
         parameters: {
             query?: never;
@@ -717,7 +841,10 @@ export interface operations {
     };
     getSessionCoach: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description single (default) coaches this session alone; progress also grounds the athlete's recent same-type history from the cross-session index and narrates improvement over time (falling back to single when there is no comparable history). */
+                mode?: "single" | "progress";
+            };
             header?: never;
             path: {
                 id: string;

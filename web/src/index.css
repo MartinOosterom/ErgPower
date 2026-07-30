@@ -305,6 +305,15 @@ input {
   opacity: 0.6;
   cursor: default;
 }
+.coach-modes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.coach-modes .mode-btn.mode-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .coach-text {
   margin: 10px 0 0;
   line-height: 1.5;
