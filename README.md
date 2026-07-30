@@ -161,6 +161,12 @@ curl -s  http://localhost:8080/api/v1/sessions/<id>/analysis
 curl -s  http://localhost:8080/api/v1/integrations/llm            # {"configured":true,"provider":"ollama",...}
 # Grounded natural-language coaching for a session (200 when configured; 409 when not).
 curl -s  http://localhost:8080/api/v1/sessions/<id>/coach
+
+# Cross-session index: every session with its cached technique scores, filterable by workout
+# target type, distance band, and date range (see "Cross-session analysis" below).
+curl -s  "http://localhost:8080/api/v1/sessions/index?targetType=distance&distanceMin=1500"
+# A metric over time across sessions (technique metrics span the log; scope performance metrics).
+curl -s  "http://localhost:8080/api/v1/trends?metric=catchGradient"
 ```
 
 For a live source, sessions **start and stop automatically** from the PM5 workout state — just row.
@@ -234,6 +240,23 @@ spring.ai.ollama.chat.options.model=llama3.1
 | `spring.ai.<provider>.chat.options.model` | – | e.g. `llama3.1`, `gpt-4o-mini`, `claude-sonnet-4-5` |
 | `spring.ai.ollama.base-url` | `http://localhost:11434` | local or remote Ollama host |
 | `spring.ai.<cloud>.api-key` | – | credential for `openai`/`anthropic` (keep in the local file) |
+
+## Cross-session analysis
+
+Each session's deterministic technique analysis is **computed once and cached** as `analysis.json` in the
+session folder (stamped with an analyzer version; recomputed when the analysis logic changes). A
+lightweight, rebuildable **rollup** (`sessions-index.json`) then indexes every session — start time,
+workout target type/value, distance, duration, power, and the technique scores — so listing and trending
+hundreds of sessions never re-runs the analysis (`GET /sessions/index`, `GET /trends`). Both files are
+derived: delete them and the next read reproduces them.
+
+Comparison uses **two lenses**, because the log is heterogeneous (varied distances and fixed times):
+
+- **Technique-shape metrics** (catch gradient, peak position, finish plateau, mean/max ratio) are
+  normalized as a percentage of the drive, so they compare honestly across *any* pieces — a
+  `catchGradient` trend spans your whole log.
+- **Performance metrics** (power, pace) are only comparable *within a workout type*, so scope them with
+  the filters (`targetType`, `distanceMin/Max`, `from`/`to`).
 
 ## What a session looks like
 

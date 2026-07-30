@@ -17,6 +17,7 @@ tags:
   - name: export
   - name: analysis
   - name: coach
+  - name: index
 
 paths:
   /connection:
@@ -73,6 +74,52 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/SessionSummary" }
+
+  /sessions/index:
+    get:
+      operationId: getSessionIndex
+      summary: Cross-session index — stored sessions with their technique scores, filterable.
+      tags: [index]
+      parameters:
+        - { name: targetType, in: query, required: false, schema: { type: string, enum: [time, distance] }, description: "Only workouts with this target type." }
+        - { name: distanceMin, in: query, required: false, schema: { type: number }, description: "Minimum distance (m)." }
+        - { name: distanceMax, in: query, required: false, schema: { type: number }, description: "Maximum distance (m)." }
+        - { name: from, in: query, required: false, schema: { type: string }, description: "Inclusive lower bound on startedAt (ISO-8601)." }
+        - { name: to, in: query, required: false, schema: { type: string }, description: "Inclusive upper bound on startedAt (ISO-8601)." }
+      responses:
+        "200":
+          description: Matching sessions (newest first) with technique scores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SessionIndexEntry" }
+
+  /trends:
+    get:
+      operationId: getTrend
+      summary: A metric over time across sessions.
+      description: >
+        Technique-shape metrics (catchGradient, peakPosition, finishPlateau, meanMaxRatio) are comparable
+        across any pieces and may span the whole log. Performance metrics (avgPowerW, peakPowerW, distanceM,
+        durationS) are only comparable within a workout type — scope them with the filters (e.g. targetType
+        + a distance band) so incomparable pieces are not mixed.
+      tags: [index]
+      parameters:
+        - { name: metric, in: query, required: true, schema: { type: string }, description: "catchGradient | peakPosition | finishPlateau | meanMaxRatio | avgPowerW | peakPowerW | distanceM | durationS" }
+        - { name: targetType, in: query, required: false, schema: { type: string, enum: [time, distance] } }
+        - { name: distanceMin, in: query, required: false, schema: { type: number } }
+        - { name: distanceMax, in: query, required: false, schema: { type: number } }
+        - { name: from, in: query, required: false, schema: { type: string } }
+        - { name: to, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Trend points, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SessionTrendPoint" }
 
   /source:
     get:
@@ -435,6 +482,34 @@ components:
         peakPowerW: { type: integer, nullable: true }
         replayable: { type: boolean, description: "Has raw frames, so it can be replayed." }
       required: [id, replayable]
+
+    SessionIndexEntry:
+      type: object
+      description: One session's summary plus its cached technique scores, for cross-session comparison.
+      properties:
+        id: { type: string }
+        startedAt: { type: string, nullable: true }
+        targetType: { type: string, enum: [time, distance, none], description: "Workout duration type." }
+        targetValue: { type: number, nullable: true, description: "Target seconds (time) or metres (distance)." }
+        distanceM: { type: number, nullable: true }
+        durationS: { type: number, nullable: true }
+        avgPowerW: { type: integer, nullable: true }
+        peakPowerW: { type: integer, nullable: true }
+        hasCurves: { type: boolean, description: "Whether force curves were recorded (so scores exist)." }
+        scores:
+          type: object
+          additionalProperties: { type: number }
+          description: "Technique score key → value (catchGradient, peakPosition, finishPlateau, meanMaxRatio)."
+        replayable: { type: boolean }
+      required: [id, targetType, hasCurves, replayable]
+
+    SessionTrendPoint:
+      type: object
+      properties:
+        sessionId: { type: string }
+        startedAt: { type: string, nullable: true }
+        value: { type: number }
+      required: [sessionId, value]
 
     SourceType:
       type: string
