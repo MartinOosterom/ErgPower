@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-30
+goal: "Let the coach work over multiple sessions: an optional progress/history
+  mode that compares the current session to recent same-type sessions, grounded
+  in the cross-session index."

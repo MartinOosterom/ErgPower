@@ -30,19 +30,17 @@ import work.zing.ergpower.api.model.LlmStatus;
 public class CoachController implements CoachApi {
 
     private final CoachService coachService;
-    private final LlmCoachFactory factory;
 
-    public CoachController(CoachService coachService, LlmCoachFactory factory) {
+    public CoachController(CoachService coachService) {
         this.coachService = coachService;
-        this.factory = factory;
     }
 
     @Override
     public Mono<ResponseEntity<LlmStatus>> getLlmStatus(ServerWebExchange exchange) {
         LlmStatus status = new LlmStatus()
-                .configured(factory.configured())
-                .provider(factory.provider())
-                .model(factory.model());
+                .configured(coachService.configured())
+                .provider(coachService.provider())
+                .model(coachService.modelName());
         return Mono.just(ResponseEntity.ok(status));
     }
 

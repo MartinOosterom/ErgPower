@@ -5,7 +5,13 @@ import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.Supplier;
 
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import work.zing.ergpower.api.model.CoachResult;
@@ -20,7 +26,12 @@ import work.zing.ergpower.pm5.analysis.TechniqueAnalyzer;
 /**
  * Turns a session's <em>deterministic</em> technique analysis into grounded natural-language coaching
  * (design decisions D2/D6). It reuses {@link TechniqueAnalyzer} for the numbers, renders them plus a
- * fixed Kleshnev rubric into a provider-agnostic prompt, and calls the configured {@link LlmCoach}.
+ * fixed Kleshnev rubric into a provider-agnostic prompt, and calls the configured Spring AI
+ * {@link ChatModel} through a {@link ChatClient}.
+ *
+ * <p>The coach is optional: the {@code ChatModel} bean exists only when a provider is configured
+ * ({@code spring.ai.model.chat} ≠ {@code none}); absent it, {@link #configured()} is false and the
+ * coach is disabled without affecting the deterministic analysis.
  *
  * <p>Grounding: only the structured analysis (scorecard, feature stats, drift trends, fault flags) is
  * sent — never the raw force curves — and the system prompt instructs the model to comment only on the
@@ -65,13 +76,40 @@ public class CoachService {
             Refer to the athlete's own numbers. Do not output JSON, tables, or bullet lists.""";
 
     private final TechniqueAnalyzer analyzer;
-    private final LlmCoachFactory factory;
     private final CoachContext context;
+    private final Supplier<ChatModel> chatModel;
+    private final Environment env;
 
-    public CoachService(TechniqueAnalyzer analyzer, LlmCoachFactory factory, CoachContext context) {
+    /** Production wiring: the {@link ChatModel} is an optional bean (present only when a provider is set). */
+    @Autowired
+    public CoachService(TechniqueAnalyzer analyzer, CoachContext context,
+            ObjectProvider<ChatModel> chatModelProvider, Environment env) {
+        this(analyzer, context, chatModelProvider::getIfAvailable, env);
+    }
+
+    /** Testable seam: supply the model (or {@code () -> null} for "not configured") directly. */
+    CoachService(TechniqueAnalyzer analyzer, CoachContext context,
+            Supplier<ChatModel> chatModel, Environment env) {
         this.analyzer = analyzer;
-        this.factory = factory;
         this.context = context;
+        this.chatModel = chatModel;
+        this.env = env;
+    }
+
+    /** Whether a chat provider is configured (a {@link ChatModel} bean exists). */
+    public boolean configured() {
+        return chatModel.get() != null;
+    }
+
+    /** The configured chat provider id (e.g. {@code "ollama"}), or {@code null} when disabled. */
+    public String provider() {
+        return configured() ? env.getProperty("spring.ai.model.chat") : null;
+    }
+
+    /** The active model name, or {@code null} when disabled. */
+    public String modelName() {
+        ChatModel model = chatModel.get();
+        return model != null ? modelName(model) : null;
     }
 
     /**
@@ -83,21 +121,32 @@ public class CoachService {
      * @throws IOException               if the session's stored data cannot be read (→ 500)
      */
     public CoachResult coach(String id) throws IOException {
-        if (!factory.configured()) {
-            throw new CoachUnavailableException("no LLM provider configured (set ergpower.llm.provider)");
+        ChatModel model = chatModel.get();
+        if (model == null) {
+            throw new CoachUnavailableException("no LLM provider configured (set spring.ai.model.chat)");
         }
         SessionAnalysis analysis = analyzer.analyze(id); // throws NoSuchElementException for unknown id
         String user = renderAnalysis(analysis) + context.render(id);
         try {
-            String text = factory.coach().complete(SYSTEM_PROMPT, user);
-            return new CoachResult().model(factory.model()).text(text);
-        } catch (IOException e) {
-            // Preserve the provider's own message (e.g. Ollama's 402 balance hint) for the 502 detail.
-            throw new UncheckedIOException("LLM provider call failed: " + e.getMessage(), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new UncheckedIOException("LLM provider call interrupted", new IOException(e));
+            String text = ChatClient.create(model).prompt().system(SYSTEM_PROMPT).user(user).call().content();
+            return new CoachResult().model(modelName(model)).text(text);
+        } catch (RuntimeException e) {
+            // Surface the provider's own message (e.g. an Ollama 402 balance hint) in the 502 detail.
+            throw new UncheckedIOException("LLM provider call failed: " + e.getMessage(), new IOException(e));
         }
+    }
+
+    /** The model id from a {@link ChatModel}'s default options, or {@code "unknown"}. */
+    static String modelName(ChatModel model) {
+        try {
+            var opts = model.getOptions();
+            if (opts != null && opts.getModel() != null && !opts.getModel().isBlank()) {
+                return opts.getModel();
+            }
+        } catch (RuntimeException ignored) {
+            // some models may not expose default options
+        }
+        return "unknown";
     }
 
     /** Render the structured analysis as compact text — the only thing sent to the provider. */

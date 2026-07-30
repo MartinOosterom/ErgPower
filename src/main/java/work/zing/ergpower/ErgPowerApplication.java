@@ -8,10 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
-import work.zing.ergpower.pm5.config.LlmProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ErgPowerBleProperties.class, LlmProperties.class})
+@EnableConfigurationProperties(ErgPowerBleProperties.class)
 public class ErgPowerApplication {
 
     public static void main(String[] args) {

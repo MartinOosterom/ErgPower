@@ -207,6 +207,10 @@ using the context only to explain *why* the curve behaved as it did (pacing, fat
 With no provider set (`provider=none`, the default) the coach is disabled and nothing about the analysis
 changes.
 
+The AI layer runs on **[Spring AI](https://docs.spring.io/spring-ai/reference/) 2.0** (on Spring Boot
+4.1); providers are selected with `spring.ai.*`. No chat model is active by default (`spring.ai.model.chat=none`),
+so the coach is off until you configure one.
+
 **Ollama-first for privacy:** point it at a local [Ollama](https://ollama.com) and nothing leaves the
 machine. Cloud providers (OpenAI-compatible or Anthropic) receive only the numeric analysis, and only
 when you opt in by configuring one. Put settings — especially any API key — in the **git-ignored**
@@ -215,19 +219,21 @@ when you opt in by configuring one. Put settings — especially any API key — 
 
 ```properties
 # ./config/ergpower.local.properties  (git-ignored)
-ergpower.llm.provider=ollama                      # none | ollama | openai | anthropic
-ergpower.llm.base-url=http://localhost:11434      # optional; a remote host or OpenAI-compatible runner
-ergpower.llm.model=llama3.1                        # optional; sensible per-provider default when unset
-# ergpower.llm.api-key=...                          # openai / anthropic only
+spring.ai.model.chat=ollama                        # none | ollama | openai | anthropic
+spring.ai.ollama.base-url=http://localhost:11434   # a local or remote Ollama host
+spring.ai.ollama.chat.options.model=llama3.1
+# or a cloud provider (api key stays in this git-ignored file):
+# spring.ai.model.chat=openai
+# spring.ai.openai.api-key=...
+# spring.ai.openai.chat.options.model=gpt-4o-mini
 ```
 
 | Property | Default | Purpose |
 |---|---|---|
-| `llm.provider` | `none` | `none` \| `ollama` \| `openai` \| `anthropic`; `none` disables the coach |
-| `llm.model` | per-provider | e.g. `llama3.1`, `gpt-4o-mini`, `claude-3-5-sonnet-latest` |
-| `llm.base-url` | per-provider | Ollama host or an OpenAI-compatible endpoint |
-| `llm.api-key` | – | credential for `openai`/`anthropic` (keep in the local file) |
-| `llm.timeout` | `60s` | per-request timeout |
+| `spring.ai.model.chat` | `none` | `none` \| `ollama` \| `openai` \| `anthropic`; `none` disables the coach |
+| `spring.ai.<provider>.chat.options.model` | – | e.g. `llama3.1`, `gpt-4o-mini`, `claude-sonnet-4-5` |
+| `spring.ai.ollama.base-url` | `http://localhost:11434` | local or remote Ollama host |
+| `spring.ai.<cloud>.api-key` | – | credential for `openai`/`anthropic` (keep in the local file) |
 
 ## What a session looks like
 

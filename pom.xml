@@ -41,7 +41,21 @@
              launching shell/IDE has ~/.cargo/bin on PATH. Override for a non-rustup install, e.g.
              -Dcargo.executable=/opt/homebrew/bin/cargo (or just `cargo` if it's on your build PATH). -->
         <cargo.executable>${env.HOME}/.cargo/bin/cargo</cargo.executable>
+        <!-- Spring AI 2.0.0 GA is built against Spring Boot 4.1.0 (this project's version), so it drops
+             in with no platform change. It is the sole AI abstraction (see change align-platform-spring-ai). -->
+        <spring-ai.version>2.0.0</spring-ai.version>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -70,6 +84,21 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Spring AI: the optional LLM coach (and later the agent). Providers are selected by config;
+             cloud starters stay inert unless their api-key is set, Ollama defaults to localhost. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-anthropic</artifactId>
         </dependency>
 
         <dependency>

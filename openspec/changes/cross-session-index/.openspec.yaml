@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-30
+goal: A cached, scalable cross-session analysis index (per-session technique
+  scores + fast filtered listing + type-aware trends over time) that both the
+  coach and the agent build on.

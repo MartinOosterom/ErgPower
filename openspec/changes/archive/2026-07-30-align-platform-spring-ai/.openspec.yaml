@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-30
+goal: "Adopt Spring AI as the sole AI layer: align Spring Boot to Spring AI's GA
+  baseline and migrate the coach off the hand-rolled HTTP providers, with no
+  change to coaching behavior."

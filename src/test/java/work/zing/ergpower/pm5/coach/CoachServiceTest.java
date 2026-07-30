@@ -8,16 +8,19 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.core.env.StandardEnvironment;
+
+import reactor.core.publisher.Flux;
 
 import work.zing.ergpower.api.model.SessionAnalysis;
 import work.zing.ergpower.pm5.analysis.TechniqueAnalyzer;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
-import work.zing.ergpower.pm5.config.LlmProperties;
-import work.zing.ergpower.pm5.config.LlmProperties.Provider;
 import work.zing.ergpower.pm5.source.ReplayPm5Source;
 import work.zing.ergpower.pm5.storage.SessionMeta;
 import work.zing.ergpower.pm5.storage.SessionStorage;
@@ -35,10 +38,6 @@ class CoachServiceTest {
     @TempDir
     Path storage;
 
-    private static LlmProperties props(Provider p, String baseUrl) {
-        return new LlmProperties(p, null, baseUrl, null, Duration.ofSeconds(5));
-    }
-
     /** Analyzer pointed at the temp storage dir (only the storage path is exercised here). */
     private TechniqueAnalyzer analyzer() {
         ErgPowerBleProperties ble = new ErgPowerBleProperties(
@@ -46,15 +45,20 @@ class CoachServiceTest {
         return new TechniqueAnalyzer(ble);
     }
 
-    private CoachService service(Provider p, String baseUrl) {
-        LlmCoachFactory factory = new LlmCoachFactory(props(p, baseUrl));
-        return new CoachService(analyzer(), factory, new CoachContext(storage));
+    /** A coach with no model — "not configured". */
+    private CoachService disabledCoach() {
+        return new CoachService(analyzer(), new CoachContext(storage), () -> null, new StandardEnvironment());
+    }
+
+    /** A coach whose model call blows up — the provider-error (502) path. */
+    private CoachService coachWith(ChatModel model) {
+        return new CoachService(analyzer(), new CoachContext(storage), () -> model, new StandardEnvironment());
     }
 
     @Test
     void disabledWithoutProvider() {
-        // No provider → the coach is unavailable (409), checked before any session lookup.
-        assertThrows(CoachUnavailableException.class, () -> service(Provider.NONE, null).coach("anything"));
+        // No model bean → the coach is unavailable (409), checked before any session lookup.
+        assertThrows(CoachUnavailableException.class, () -> disabledCoach().coach("anything"));
     }
 
     @Test
@@ -121,11 +125,22 @@ class CoachServiceTest {
     }
 
     @Test
-    void unreachableProviderIsAGatewayError() throws Exception {
+    void providerErrorIsAGatewayError() throws Exception {
         assumeTrue(Files.exists(FIXTURE), "fixture missing");
         SessionStorage.store(new ReplayPm5Source(FIXTURE), storage.resolve("s1"), SessionMeta.of("replay"));
 
-        // Ollama configured but pointed at a closed port → the provider call fails → UncheckedIOException (→ 502).
-        assertThrows(UncheckedIOException.class, () -> service(Provider.OLLAMA, "http://localhost:1").coach("s1"));
+        // A model whose call fails (e.g. an upstream 402) → CoachService wraps it as UncheckedIOException (→ 502).
+        ChatModel failing = new ChatModel() {
+            @Override
+            public ChatResponse call(Prompt prompt) {
+                throw new RuntimeException("upstream boom");
+            }
+
+            @Override
+            public Flux<ChatResponse> stream(Prompt prompt) {
+                throw new RuntimeException("upstream boom");
+            }
+        };
+        assertThrows(UncheckedIOException.class, () -> coachWith(failing).coach("s1"));
     }
 }
