@@ -47,19 +47,31 @@ public class CoachService {
             - Hump index > 1 indicates a force disconnection (a dip mid-drive).
             - Consistency = coefficient of variation (cv) across strokes; lower is steadier (> 0.15 is inconsistent).
 
+            You are also given SESSION CONTEXT (workout target, distance/time, average/peak power, pace,
+            stroke rate, drag factor, per-split summary, and heart rate when a belt was worn). The
+            force-curve TECHNIQUE remains the subject — use the context to explain it, not to become a
+            pacing or training-load advisor:
+            - Relate technique/feature changes to pacing, fatigue, and drag (e.g. a late-piece force fade
+              alongside a positive split and rising rate = fatigue compensated with rate).
+            - Read heart rate only as relative effort or drift; never give medical advice.
+            - Weigh the workout type: a fade is expected in a maximal 2k test but a concern in steady state.
+            Only use context that is present; if a field is absent, don't mention or assume it.
+
             Write concise, individualised coaching (about 150-200 words) as flowing prose for the athlete:
-            1. Lead with the single most important thing to improve, tied to a specific metric and its target.
+            1. Lead with the single most important TECHNIQUE thing to improve, tied to a specific metric and its target.
             2. Briefly acknowledge what is already good.
             3. Give one or two concrete drills or cues for the priority issue.
-            4. Mention any drift/fatigue trend only if the numbers show one.
+            4. Mention any drift/fatigue trend only if the numbers show one, using the context to explain why.
             Refer to the athlete's own numbers. Do not output JSON, tables, or bullet lists.""";
 
     private final TechniqueAnalyzer analyzer;
     private final LlmCoachFactory factory;
+    private final CoachContext context;
 
-    public CoachService(TechniqueAnalyzer analyzer, LlmCoachFactory factory) {
+    public CoachService(TechniqueAnalyzer analyzer, LlmCoachFactory factory, CoachContext context) {
         this.analyzer = analyzer;
         this.factory = factory;
+        this.context = context;
     }
 
     /**
@@ -75,7 +87,7 @@ public class CoachService {
             throw new CoachUnavailableException("no LLM provider configured (set ergpower.llm.provider)");
         }
         SessionAnalysis analysis = analyzer.analyze(id); // throws NoSuchElementException for unknown id
-        String user = renderAnalysis(analysis);
+        String user = renderAnalysis(analysis) + context.render(id);
         try {
             String text = factory.coach().complete(SYSTEM_PROMPT, user);
             return new CoachResult().model(factory.model()).text(text);

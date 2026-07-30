@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-07-29
+goal: Give the LLM technique coach the session context it needs to interpret the
+  force curves — workout type/target, distance/time, per-split pace/power/rate,
+  drag factor, and HR when present — so its technique feedback is individualized
+  and explains WHY the curve changed, while staying grounded and
+  technique-focused.

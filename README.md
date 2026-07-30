@@ -199,9 +199,13 @@ java -jar target/ErgPower-0.0.1-SNAPSHOT.jar capture \
 The technique analysis above is fully deterministic and needs no model. If — and only if — you
 configure an LLM under `ergpower.llm.*`, the analysis view gains an **"AI Coach"** panel that turns
 those numbers into grounded, plain-language coaching on demand. The coach consumes the *structured
-analysis* (scorecard, feature stats, drift trends, fault flags) plus a Kleshnev rubric — never the raw
-force curves — and is told to comment only on the provided numbers. With no provider set
-(`provider=none`, the default) the coach is disabled and nothing about the analysis changes.
+analysis* (scorecard, feature stats, drift trends, fault flags) plus a distilled *session context* —
+workout target, distance/time, average/peak power, pace, stroke rate, drag factor, a per-split summary,
+and heart rate (average + drift) when a belt was worn — and a Kleshnev rubric. It never sees the raw
+force curves or per-sample series, and is told to keep the **force-curve technique** as the subject,
+using the context only to explain *why* the curve behaved as it did (pacing, fatigue, drag, effort).
+With no provider set (`provider=none`, the default) the coach is disabled and nothing about the analysis
+changes.
 
 **Ollama-first for privacy:** point it at a local [Ollama](https://ollama.com) and nothing leaves the
 machine. Cloud providers (OpenAI-compatible or Anthropic) receive only the numeric analysis, and only
