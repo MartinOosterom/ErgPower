@@ -138,6 +138,27 @@ class CoachServiceTest {
     }
 
     @Test
+    void sessionContextIncludesProfileDerivedValues() throws Exception {
+        java.nio.file.Path dir = storage.resolve("p1");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("summary.json"),
+                "{\"strokes\":200,\"distanceM\":2000,\"durationS\":420,\"avgPowerW\":200,\"peakPowerW\":240}");
+        Files.writeString(dir.resolve("status-general.ndjson"), "{\"pmTime\":1.0,\"distanceM\":5,\"dragFactor\":120}\n");
+        Files.writeString(dir.resolve("status-additional1.ndjson"),
+                "{\"pmTime\":1.0,\"strokeRate\":28,\"heartRateBpm\":152,\"avgPaceS\":105.0}\n");
+
+        var profile = new work.zing.ergpower.pm5.config.AthleteProperties(80.0, 30, "M", 190, 50, "2k test in 6 weeks");
+        String ctx = new CoachContext(storage, profile).render("p1");
+
+        assertTrue(ctx.contains("2.50 W/kg"), "watts/kg (200 W / 80 kg)");
+        assertTrue(ctx.contains("(Z4)"), "HR zone (152 of 190 max = 80% -> Z4)");
+        assertTrue(ctx.contains("Training goal: 2k test in 6 weeks"), "goal framing");
+        // Without a profile, none of these appear.
+        String bare = new CoachContext(storage).render("p1");
+        assertFalse(bare.contains("W/kg") || bare.contains("Training goal"), "no profile -> no derived values");
+    }
+
+    @Test
     void providerErrorIsAGatewayError() throws Exception {
         assumeTrue(Files.exists(FIXTURE), "fixture missing");
         SessionStorage.store(new ReplayPm5Source(FIXTURE), storage.resolve("s1"), SessionMeta.of("replay"));

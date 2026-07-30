@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-30
+goal: A single-athlete profile (weight, age, HR max, goal) so the coach, agent,
+  and trends can use watts/kg, heart-rate zones, and goal-aware context.

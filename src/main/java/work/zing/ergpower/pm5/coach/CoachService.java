@@ -253,11 +253,15 @@ public class CoachService {
             sb.append("\nTrends over the session (first analysed stroke -> last):\n");
             for (FeatureTrend t : trends) {
                 List<TrendPoint> pts = orEmpty(t.getPoints());
-                if (pts.size() >= 2) {
-                    sb.append("- ").append(t.getLabel()).append(": ")
-                            .append(num(pts.get(0).getValue())).append(" -> ")
-                            .append(num(pts.get(pts.size() - 1).getValue())).append(unit(t.getUnit())).append("\n");
+                if (pts.size() < 2) {
+                    continue;
                 }
+                // Short trends (e.g. the per-quartile progressions) render every point; long per-stroke
+                // trends render just first -> last.
+                String series = pts.size() <= 5
+                        ? pts.stream().map(p -> num(p.getValue())).collect(java.util.stream.Collectors.joining(" -> "))
+                        : num(pts.get(0).getValue()) + " -> " + num(pts.get(pts.size() - 1).getValue());
+                sb.append("- ").append(t.getLabel()).append(": ").append(series).append(unit(t.getUnit())).append("\n");
             }
         }
 

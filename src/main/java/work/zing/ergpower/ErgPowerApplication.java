@@ -8,10 +8,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import work.zing.ergpower.pm5.config.AiProperties;
+import work.zing.ergpower.pm5.config.AthleteProperties;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ErgPowerBleProperties.class, AiProperties.class})
+@EnableConfigurationProperties({ErgPowerBleProperties.class, AiProperties.class, AthleteProperties.class})
 public class ErgPowerApplication {
 
     public static void main(String[] args) {

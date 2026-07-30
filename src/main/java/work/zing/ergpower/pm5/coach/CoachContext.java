@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import work.zing.ergpower.pm5.config.AthleteProperties;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 
 /**
@@ -35,14 +36,29 @@ public class CoachContext {
 
     private final Path storageDir;
 
+    private final AthleteProperties athlete;
+
     @Autowired
+    public CoachContext(ErgPowerBleProperties props, AthleteProperties athlete) {
+        this(Path.of(props.storage().dir()), athlete);
+    }
+
+    /** Convenience for tests without a profile. */
     public CoachContext(ErgPowerBleProperties props) {
-        this(Path.of(props.storage().dir()));
+        this(Path.of(props.storage().dir()), EMPTY_ATHLETE);
     }
 
     CoachContext(Path storageDir) {
-        this.storageDir = storageDir;
+        this(storageDir, EMPTY_ATHLETE);
     }
+
+    CoachContext(Path storageDir, AthleteProperties athlete) {
+        this.storageDir = storageDir;
+        this.athlete = athlete;
+    }
+
+    private static final AthleteProperties EMPTY_ATHLETE =
+            new AthleteProperties(null, null, null, null, null, null);
 
     /**
      * Render the session-context block for the given session, or an empty string if the session has no
@@ -87,7 +103,13 @@ public class CoachContext {
         // Averages: power, pace, rate, HR (+ drift).
         List<String> avgs = new ArrayList<>();
         if (avgPowerW >= 0) {
-            avgs.add("power " + Math.round(avgPowerW) + " W" + (peakPowerW >= 0 ? " (peak " + Math.round(peakPowerW) + " W)" : ""));
+            String p = "power " + Math.round(avgPowerW) + " W"
+                    + (peakPowerW >= 0 ? " (peak " + Math.round(peakPowerW) + " W)" : "");
+            Double wpk = athlete.wattsPerKg(avgPowerW); // profile-derived (change rower-profile)
+            if (wpk != null) {
+                p += " = " + String.format(java.util.Locale.ROOT, "%.2f", wpk) + " W/kg";
+            }
+            avgs.add(p);
         }
         if (avgPaceS > 0) {
             avgs.add("pace " + pace(avgPaceS) + "/500m");
@@ -97,11 +119,16 @@ public class CoachContext {
         }
         int[] hr = heartRate(add1); // {avg, first, last} or null
         if (hr != null) {
+            String zone = athlete.hrZone(hr[0]);
             String drift = hr[1] != hr[2] ? " (drift " + hr[1] + "→" + hr[2] + " bpm)" : "";
-            avgs.add("heart rate avg " + hr[0] + " bpm" + drift);
+            avgs.add("heart rate avg " + hr[0] + " bpm" + (zone != null ? " (" + zone + ")" : "") + drift);
         }
         if (!avgs.isEmpty()) {
             sb.append("- Averages: ").append(String.join("; ", avgs)).append(".\n");
+        }
+        String goal = athlete.goalOrNull(); // profile training goal (framing only)
+        if (goal != null) {
+            sb.append("- Training goal: ").append(goal).append(".\n");
         }
 
         // Per-split table (only when splits were recorded).

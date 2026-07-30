@@ -55,6 +55,20 @@ class TechniqueAnalyzerTest {
     }
 
     @Test
+    void richerMetricsPresent() throws Exception {
+        assumeTrue(Files.exists(FIXTURE), "fixture missing");
+        SessionStorage.store(new ReplayPm5Source(FIXTURE), storage.resolve("s1"), SessionMeta.of("replay"));
+        SessionAnalysis a = new TechniqueAnalyzer(storage).analyze("s1");
+
+        // New scored metrics (change richer-features) — flow into the index/coach/agent via the scorecard.
+        assertTrue(a.getScorecard().stream().anyMatch(s -> s.getKey().equals("driveSmoothness")), "smoothness scored");
+        assertTrue(a.getScorecard().stream().anyMatch(s -> s.getKey().equals("driveRecoveryRatio")), "rhythm scored");
+        // Per-quartile progression: a 4-point Q1–Q4 trend.
+        var q = a.getTrends().stream().filter(t -> t.getKey().equals("finishPlateauByQuarter")).findFirst().orElseThrow();
+        assertEquals(4, q.getPoints().size(), "four quarter points");
+    }
+
+    @Test
     void unknownSessionThrows() {
         assertThrows(NoSuchElementException.class, () -> new TechniqueAnalyzer(storage).analyze("missing"));
     }

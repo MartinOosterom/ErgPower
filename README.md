@@ -153,8 +153,9 @@ curl -s -X DELETE http://localhost:8080/api/v1/source    # stop the active sourc
 curl -s -o session.fit  http://localhost:8080/api/v1/sessions/<id>/export.fit
 
 # Deterministic technique analysis of a session's force curves — Kleshnev-grounded scorecard (catch
-# gradient, peak position, finish plateau…), a mean±band curve, drift trends, a per-stroke heatmap, and
-# fault flags. No model needed. The viewer shows an "Analyze" button per session.
+# gradient, peak position, finish plateau, drive smoothness, recovery:drive rhythm…), a mean±band curve,
+# drift trends including a per-quartile (Q1–Q4) progression that locates where technique drifts, a
+# per-stroke heatmap, and fault flags. No model needed. The viewer shows an "Analyze" button per session.
 curl -s  http://localhost:8080/api/v1/sessions/<id>/analysis
 
 # Optional LLM coach (see "AI coach" below). Is a provider configured?
@@ -226,6 +227,11 @@ so the coach is off until you configure one.
 Set `ergpower.ai.language` to a natural-language name (e.g. `Dutch`) to have the coach and agent answer in
 that language — only the prose is translated; metric names and numbers are kept as given. The **agent
 formats its answers as Markdown** (headings/tables), rendered in the chat; the **coach stays plain prose**.
+
+An optional **athlete profile** (`ergpower.athlete.*`: `weightKg`, `age`, `hrMax`, `goal`, …) unlocks
+**watts/kg** (power ÷ weight), **HR zones** (Z1–Z5 from `hrMax`, else `220 − age`), and **goal-aware**
+framing — fed to the coach and agent. Technique targets are unchanged (they're body-independent). Unset
+fields simply omit their derived values.
 
 **Ollama-first for privacy:** point it at a local [Ollama](https://ollama.com) and nothing leaves the
 machine. Cloud providers (OpenAI-compatible or Anthropic) receive only the numeric analysis, and only

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-30
+goal: Deeper deterministic force-curve metrics — per-quartile drift, drive
+  impulse/effectiveness, and a smoothness score — that flow into the scorecard,
+  index, trends, coach, and agent.

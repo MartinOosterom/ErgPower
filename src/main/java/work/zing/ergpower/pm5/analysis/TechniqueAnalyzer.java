@@ -38,10 +38,12 @@ public class TechniqueAnalyzer {
      * Analysis logic version — bump whenever the feature/score math changes so cached results
      * ({@code analysis.json}, see {@code SessionAnalysisCache}) are invalidated and recomputed.
      */
-    public static final int ANALYZER_VERSION = 1;
+    public static final int ANALYZER_VERSION = 2;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int BINS = 50; // resample resolution along the normalized drive
+    /** Drive-smoothness guidance target (normalised curvature of the resampled curve); calibrated below. */
+    private static final double SMOOTHNESS_MAX = 3.0;
 
     private final Path storageDir;
 
@@ -115,15 +117,23 @@ public class TechniqueAnalyzer {
             curveList.add(row);
         }
 
-        List<FeatureStat> features = List.of(
+        // Richer features (change richer-features): per-stroke drive smoothness + the drive:recovery ratio.
+        double[] rough = new double[m];
+        for (int s = 0; s < m; s++) {
+            rough[s] = roughness(resampled[s]);
+        }
+        double driveRec = driveRecoveryRatio(readLines(dir.resolve("stroke.ndjson")));
+
+        List<FeatureStat> features = new ArrayList<>(List.of(
                 stat("peakForce", "Peak force", "N", peak),
                 stat("peakPosition", "Peak position", "%", peakPos),
                 stat("catchGradient", "Catch gradient", "%", catchG),
                 stat("finishPlateau", "Finish plateau", "%", plateau),
                 stat("meanMaxRatio", "Mean/max ratio", "", mmr),
-                stat("humpIndex", "Hump index", "", humpD));
+                stat("humpIndex", "Hump index", "", humpD),
+                stat("driveSmoothness", "Drive smoothness", "", rough)));
 
-        List<ScoreMetric> scorecard = List.of(
+        List<ScoreMetric> scorecard = new ArrayList<>(List.of(
                 metric("catchGradient", "Catch gradient", mean(catchG), "%", null, 17.0,
                         "Reach 70% of peak within the first 17% of the drive — a legs-driven catch."),
                 metric("peakPosition", "Peak position", mean(peakPos), "%", null, 40.0,
@@ -131,12 +141,23 @@ public class TechniqueAnalyzer {
                 metric("finishPlateau", "Finish plateau", mean(plateau), "%", 28.0, 40.0,
                         "Hold force through the finish — a plateau 28–40% of the drive."),
                 metric("meanMaxRatio", "Mean / max ratio", mean(mmr), "", null, null,
-                        "Higher = a fatter curve = more work per stroke (no hard target)."));
+                        "Higher = a fatter curve = more work per stroke (no hard target)."),
+                metric("driveSmoothness", "Drive smoothness", mean(rough), "", null, SMOOTHNESS_MAX,
+                        "Lower is a smoother, more connected drive (less jagged). Guidance, not a hard target.")));
+        if (!Double.isNaN(driveRec)) {
+            scorecard.add(metric("driveRecoveryRatio", "Recovery : drive", driveRec, ":1", 1.5, null,
+                    "Recovery time vs drive time — aim for a relaxed recovery (>= ~1.5:1). Guidance target."));
+        }
 
-        List<FeatureTrend> trends = List.of(
+        List<FeatureTrend> trends = new ArrayList<>(List.of(
                 trend("peakForce", "Peak force", "N", strokeNums, peak),
                 trend("peakPosition", "Peak position", "%", strokeNums, peakPos),
-                trend("catchGradient", "Catch gradient", "%", strokeNums, catchG));
+                trend("catchGradient", "Catch gradient", "%", strokeNums, catchG)));
+        if (m >= 4) { // per-quartile progression — locate where in the piece each shape metric drifts
+            trends.add(quarterTrend("catchGradientByQuarter", "Catch gradient by quarter", "%", catchG));
+            trends.add(quarterTrend("peakPositionByQuarter", "Peak position by quarter", "%", peakPos));
+            trends.add(quarterTrend("finishPlateauByQuarter", "Finish plateau by quarter", "%", plateau));
+        }
 
         List<TechniqueFlag> flags = new ArrayList<>();
         int disconnected = 0;
@@ -169,6 +190,14 @@ public class TechniqueAnalyzer {
         if (drift > 8) {
             flags.add(flag("fatigue_drift", "info", "Peak position drifted " + r0(drift)
                     + "% later from start to end — technique fading under fatigue.", null));
+        }
+        if (mean(rough) > SMOOTHNESS_MAX) {
+            flags.add(flag("rough_drive", "info", "The drive is jagged (smoothness " + r2(mean(rough))
+                    + ") — aim for a smoother, more connected force application.", null));
+        }
+        if (!Double.isNaN(driveRec) && driveRec < 1.5) {
+            flags.add(flag("rushed_recovery", "warn", "Recovery is rushed (ratio " + r2(driveRec)
+                    + ":1) — take more time on the slide.", null));
         }
 
         return new SessionAnalysis(id, m, true).bins(BINS)
@@ -240,6 +269,67 @@ public class TechniqueAnalyzer {
             out[i] = f[lo] + (f[hi] - f[lo]) * (pos - lo);
         }
         return out;
+    }
+
+    /** Normalised curvature of a resampled curve (sum of |2nd difference| / peak); lower = smoother. */
+    private static double roughness(double[] r) {
+        double peak = 0;
+        for (double v : r) {
+            peak = Math.max(peak, v);
+        }
+        if (peak <= 0) {
+            return 0;
+        }
+        double sum = 0;
+        for (int i = 1; i < r.length - 1; i++) {
+            sum += Math.abs(r[i - 1] - 2 * r[i] + r[i + 1]);
+        }
+        return sum / peak;
+    }
+
+    /** Average recovery-to-drive time ratio from the stroke records, or NaN when timings are unavailable. */
+    private static double driveRecoveryRatio(List<JsonNode> strokes) {
+        double drive = 0, recovery = 0;
+        int nd = 0, nr = 0;
+        for (JsonNode s : strokes) {
+            if (s.hasNonNull("driveTimeS") && s.get("driveTimeS").asDouble() > 0) {
+                drive += s.get("driveTimeS").asDouble();
+                nd++;
+            }
+            if (s.hasNonNull("recoveryTimeS") && s.get("recoveryTimeS").asDouble() > 0) {
+                recovery += s.get("recoveryTimeS").asDouble();
+                nr++;
+            }
+        }
+        return (nd == 0 || nr == 0) ? Double.NaN : (recovery / nr) / (drive / nd);
+    }
+
+    /** Mean of each quarter of the series (Q1–Q4). */
+    private static double[] quartiles(double[] v) {
+        double[] q = new double[4];
+        int n = v.length;
+        for (int k = 0; k < 4; k++) {
+            int lo = (int) Math.round((double) k / 4 * n);
+            int hi = (int) Math.round((double) (k + 1) / 4 * n);
+            double sum = 0;
+            int c = 0;
+            for (int i = lo; i < hi && i < n; i++) {
+                sum += v[i];
+                c++;
+            }
+            q[k] = c > 0 ? sum / c : 0;
+        }
+        return q;
+    }
+
+    /** A 4-point Q1→Q4 progression as a trend (x = quarter number). */
+    private static FeatureTrend quarterTrend(String key, String label, String unit, double[] v) {
+        double[] q = quartiles(v);
+        List<TrendPoint> pts = new ArrayList<>(4);
+        for (int k = 0; k < 4; k++) {
+            pts.add(new TrendPoint(k + 1, bd(q[k])));
+        }
+        return new FeatureTrend(key, label, pts).unit(unit);
     }
 
     private static ScoreMetric metric(String key, String label, double value, String unit, Double min, Double max, String note) {
