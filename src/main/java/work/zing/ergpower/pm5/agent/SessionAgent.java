@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
 import work.zing.ergpower.api.model.ChatMessage;
+import work.zing.ergpower.pm5.config.AiProperties;
 
 /**
  * The optional interactive session agent (change {@code session-agent}): a Spring AI {@link ChatClient}
@@ -46,12 +47,22 @@ public class SessionAgent {
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final SessionTools sessionTools;
     private final CrossSessionTools crossSessionTools;
+    private final AiProperties ai;
 
     public SessionAgent(ObjectProvider<ChatModel> chatModelProvider, SessionTools sessionTools,
-            CrossSessionTools crossSessionTools) {
+            CrossSessionTools crossSessionTools, AiProperties ai) {
         this.chatModelProvider = chatModelProvider;
         this.sessionTools = sessionTools;
         this.crossSessionTools = crossSessionTools;
+        this.ai = ai;
+    }
+
+    /** Presentation instructions appended to the agent's system prompt: Markdown output + optional language. */
+    private String presentation() {
+        String md = "\n\nFormat your answer as Markdown (headings, tables, lists, and emphasis where they aid clarity).";
+        String lang = ai.languageOrNull();
+        return lang == null ? md : md + "\nRespond in " + lang
+                + ". Translate only your prose; keep the metric names and numeric values exactly as given.";
     }
 
     /** Whether a chat provider is configured (so the agent is available). */
@@ -68,7 +79,8 @@ public class SessionAgent {
         if (model == null) {
             return Flux.empty();
         }
-        String system = SYSTEM + "\n\nThe session being viewed is '" + anchorId + "'. Answer about it.";
+        String system = SYSTEM + "\n\nThe session being viewed is '" + anchorId + "'. Answer about it."
+                + presentation();
         return ChatClient.create(model).prompt()
                 .system(system)
                 .messages(toMessages(transcript))
@@ -86,7 +98,8 @@ public class SessionAgent {
         if (model == null) {
             return Flux.empty();
         }
-        String system = SET_SYSTEM + "\n\nThe selected sessions are: " + String.join(", ", sessionIds) + ".";
+        String system = SET_SYSTEM + "\n\nThe selected sessions are: " + String.join(", ", sessionIds) + "."
+                + presentation();
         return ChatClient.create(model).prompt()
                 .system(system)
                 .messages(toMessages(transcript))

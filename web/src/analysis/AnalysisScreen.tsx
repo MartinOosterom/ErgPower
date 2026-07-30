@@ -3,6 +3,7 @@ import type { EChartsOption } from 'echarts'
 
 import { api } from '../api/client'
 import { EChart } from '../components/EChart'
+import { Markdown } from '../components/Markdown'
 import type { CoachResult, LlmStatus, ScoreMetric, SessionAnalysis } from '../api/types'
 
 const ACCENT = '#38bdf8'
@@ -211,11 +212,12 @@ function ChatPanel({ id }: { id: string }) {
         buf = blocks.pop() ?? ''
         for (const block of blocks) {
           let ev = ''
-          let data = ''
+          const dataLines: string[] = []
           for (const line of block.split('\n')) {
             if (line.startsWith('event:')) ev = line.slice(6).trim()
-            else if (line.startsWith('data:')) data += line.slice(5) // no space-strip: preserve token spacing
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5)) // no space-strip: keep spacing
           }
+          const data = dataLines.join('\n') // SSE: multiple data: lines rejoin with newlines (Markdown needs them)
           if (ev === 'token' && data) {
             setTurns((t) => {
               const copy = [...t]
@@ -245,7 +247,11 @@ function ChatPanel({ id }: { id: string }) {
         )}
         {turns.map((t, i) => (
           <div key={i} className={`chat-msg chat-${t.role}`}>
-            {t.content || (busy && i === turns.length - 1 ? 'Thinking…' : '')}
+            {t.role === 'assistant'
+              ? t.content
+                ? <Markdown>{t.content}</Markdown>
+                : busy && i === turns.length - 1 ? 'Thinking…' : ''
+              : t.content}
           </div>
         ))}
       </div>

@@ -7,10 +7,11 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
+import work.zing.ergpower.pm5.config.AiProperties;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties(ErgPowerBleProperties.class)
+@EnableConfigurationProperties({ErgPowerBleProperties.class, AiProperties.class})
 public class ErgPowerApplication {
 
     public static void main(String[] args) {

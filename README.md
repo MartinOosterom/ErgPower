@@ -223,6 +223,10 @@ The AI layer runs on **[Spring AI](https://docs.spring.io/spring-ai/reference/) 
 4.1); providers are selected with `spring.ai.*`. No chat model is active by default (`spring.ai.model.chat=none`),
 so the coach is off until you configure one.
 
+Set `ergpower.ai.language` to a natural-language name (e.g. `Dutch`) to have the coach and agent answer in
+that language — only the prose is translated; metric names and numbers are kept as given. The **agent
+formats its answers as Markdown** (headings/tables), rendered in the chat; the **coach stays plain prose**.
+
 **Ollama-first for privacy:** point it at a local [Ollama](https://ollama.com) and nothing leaves the
 machine. Cloud providers (OpenAI-compatible or Anthropic) receive only the numeric analysis, and only
 when you opt in by configuring one. Put settings — especially any API key — in the **git-ignored**

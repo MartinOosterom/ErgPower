@@ -22,6 +22,7 @@ import work.zing.ergpower.api.model.SessionAnalysis;
 import work.zing.ergpower.api.model.TechniqueFlag;
 import work.zing.ergpower.api.model.TrendPoint;
 import work.zing.ergpower.pm5.analysis.TechniqueAnalyzer;
+import work.zing.ergpower.pm5.config.AiProperties;
 
 /**
  * Turns a session's <em>deterministic</em> technique analysis into grounded natural-language coaching
@@ -89,22 +90,31 @@ public class CoachService {
     private final CoachHistory history;
     private final Supplier<ChatModel> chatModel;
     private final Environment env;
+    private final AiProperties ai;
 
     /** Production wiring: the {@link ChatModel} is an optional bean (present only when a provider is set). */
     @Autowired
     public CoachService(TechniqueAnalyzer analyzer, CoachContext context, CoachHistory history,
-            ObjectProvider<ChatModel> chatModelProvider, Environment env) {
-        this(analyzer, context, history, chatModelProvider::getIfAvailable, env);
+            ObjectProvider<ChatModel> chatModelProvider, Environment env, AiProperties ai) {
+        this(analyzer, context, history, chatModelProvider::getIfAvailable, env, ai);
     }
 
     /** Testable seam: supply the model (or {@code () -> null} for "not configured") directly. */
     CoachService(TechniqueAnalyzer analyzer, CoachContext context, CoachHistory history,
-            Supplier<ChatModel> chatModel, Environment env) {
+            Supplier<ChatModel> chatModel, Environment env, AiProperties ai) {
         this.analyzer = analyzer;
         this.context = context;
         this.history = history;
         this.chatModel = chatModel;
         this.env = env;
+        this.ai = ai;
+    }
+
+    /** A "respond in <language>" instruction to append to a system prompt, or "" when unset (English). */
+    private String languageSuffix() {
+        String lang = ai.languageOrNull();
+        return lang == null ? "" : "\n\nRespond in " + lang
+                + ". Translate only your prose; keep the metric names and numeric values exactly as given.";
     }
 
     /** Whether a chat provider is configured (a {@link ChatModel} bean exists). */
@@ -155,6 +165,7 @@ public class CoachService {
                 system += PROGRESS_SUFFIX;
             }
         }
+        system += languageSuffix();
         try {
             String text = ChatClient.create(model).prompt().system(system).user(user).call().content();
             return new CoachResult().model(modelName(model)).text(text);
@@ -185,7 +196,7 @@ public class CoachService {
         SessionAnalysis analysis = analyzer.analyze(anchor);
         String hist = history.blockForSet(sessionIds);
         String user = renderAnalysis(analysis) + context.render(anchor) + hist;
-        String system = hist.isEmpty() ? SYSTEM_PROMPT : SYSTEM_PROMPT + PROGRESS_SUFFIX;
+        String system = (hist.isEmpty() ? SYSTEM_PROMPT : SYSTEM_PROMPT + PROGRESS_SUFFIX) + languageSuffix();
         try {
             String text = ChatClient.create(model).prompt().system(system).user(user).call().content();
             return new CoachResult().model(modelName(model)).text(text);

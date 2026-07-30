@@ -22,6 +22,7 @@ import work.zing.ergpower.api.model.SessionAnalysis;
 import work.zing.ergpower.pm5.analysis.SessionAnalysisCache;
 import work.zing.ergpower.pm5.analysis.SessionIndex;
 import work.zing.ergpower.pm5.analysis.TechniqueAnalyzer;
+import work.zing.ergpower.pm5.config.AiProperties;
 import work.zing.ergpower.pm5.config.ErgPowerBleProperties;
 import work.zing.ergpower.pm5.source.ReplayPm5Source;
 import work.zing.ergpower.pm5.storage.SessionMeta;
@@ -57,12 +58,14 @@ class CoachServiceTest {
 
     /** A coach with no model — "not configured". */
     private CoachService disabledCoach() {
-        return new CoachService(analyzer(), new CoachContext(storage), history(), () -> null, new StandardEnvironment());
+        return new CoachService(analyzer(), new CoachContext(storage), history(), () -> null,
+                new StandardEnvironment(), new AiProperties(null));
     }
 
     /** A coach whose model call blows up — the provider-error (502) path. */
     private CoachService coachWith(ChatModel model) {
-        return new CoachService(analyzer(), new CoachContext(storage), history(), () -> model, new StandardEnvironment());
+        return new CoachService(analyzer(), new CoachContext(storage), history(), () -> model,
+                new StandardEnvironment(), new AiProperties(null));
     }
 
     @Test
