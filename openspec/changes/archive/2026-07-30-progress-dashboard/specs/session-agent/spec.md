@@ -9,13 +9,17 @@ single session's Analysis view it SHALL have only that session's tools and canno
 the Progress dashboard it SHALL additionally have the cross-session tools, focused on the **selected set** of
 sessions.
 
+#### Scenario: Pulls the data a question needs
+- **WHEN** a question concerns a time window, a single stroke, or the analysis
+- **THEN** the agent calls the corresponding tool and answers from its result
+
 #### Scenario: Session-scoped on the analysis view
 - **WHEN** the agent is used on a single session's Analysis view
 - **THEN** it answers about that session using its session tools and does not reach other sessions
 
-#### Scenario: Set-scoped on the progress dashboard
-- **WHEN** the agent is used on the Progress dashboard with a selected set of sessions
-- **THEN** it uses the cross-session tools focused on that selected set to answer comparative questions
+#### Scenario: Roams across sessions when asked
+- **WHEN** a comparative or historical question is asked on the Progress dashboard with a selected set
+- **THEN** the agent uses the cross-session listing/compare tools, focused on that selected set
 
 #### Scenario: Tools are read-only and confined
 - **WHEN** a tool runs
